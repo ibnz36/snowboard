@@ -1,5 +1,7 @@
 <div align="center">
 
+# This project is no longer mantained. Please open an issue if you desire to continue it, ownership will be passed.
+
 # **Snowboard 🏂**
 
 ![License](https://img.shields.io/github/license/Brian3647/snowboard)
