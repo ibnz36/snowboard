@@ -52,27 +52,17 @@ pub struct Server {
 impl Server {
 	/// Create a new server instance.
 	/// The server will listen on the given address.
-	#[cfg(not(feature = "tls"))]
-	pub fn new(addr: impl ToSocketAddrs) -> io::Result<Self> {
+	pub fn new(
+		addr: impl ToSocketAddrs,
+		#[cfg(feature = "tls")] tls_acceptor: TlsAcceptor,
+	) -> io::Result<Self> {
 		Ok(Self {
 			acceptor: TcpListener::bind(addr)?,
 			buffer_size: DEFAULT_BUFFER_SIZE,
 			#[cfg(feature = "websocket")]
 			ws_handler: None,
-			insert_default_headers: false,
-		})
-	}
-
-	/// Create a new server instance with TLS.
-	/// The server will listen on the given address.
-	#[cfg(feature = "tls")]
-	pub fn new_with_tls(addr: impl ToSocketAddrs, tls_acceptor: TlsAcceptor) -> io::Result<Self> {
-		Ok(Self {
-			acceptor: TcpListener::bind(addr)?,
-			buffer_size: DEFAULT_BUFFER_SIZE,
+			#[cfg(feature = "tls")]
 			tls_acceptor,
-			#[cfg(feature = "websocket")]
-			ws_handler: None,
 			insert_default_headers: false,
 		})
 	}

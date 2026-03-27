@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tungstenite = "0.20.1"
+tungstenite = "0.29.0"
 
 [dependencies.snowboard]
 path = "../.."
