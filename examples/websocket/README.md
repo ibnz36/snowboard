@@ -12,5 +12,5 @@ $ cargo run
 ## Test
 
 ```sh
-$ websocat ws://localhost:3000
+$ websocat ws://localhost:3000/ws
 ```
