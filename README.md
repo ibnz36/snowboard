@@ -1,17 +1,17 @@
 <div align="center">
 
-# This project is no longer mantained. Please open an issue if you desire to continue it, ownership will be passed.
+# Package under near-to-no maintenance. Please open an issue or contact me if you're willing to take the lead of it.
 
 # **Snowboard 🏂**
 
-![License](https://img.shields.io/github/license/Brian3647/snowboard)
-![Build status](https://img.shields.io/github/actions/workflow/status/Brian3647/snowboard/rust.yml)
-[![DeepSource](https://app.deepsource.com/gh/Brian3647/snowboard.svg/?label=active+issues&show_trend=false)](https://app.deepsource.com/gh/Brian3647/snowboard/)
-[![dependency status](https://deps.rs/repo/github/Brian3647/snowboard/status.svg)](https://deps.rs/repo/github/Brian3647/snowboard)
+![License](https://img.shields.io/github/license/ibnz36/snowboard)
+![Build status](https://img.shields.io/github/actions/workflow/status/ibnz36/snowboard/rust.yml)
+[![DeepSource](https://app.deepsource.com/gh/ibnz36/snowboard.svg/?label=active+issues&show_trend=false)](https://app.deepsource.com/gh/ibnz36/snowboard/)
+[![dependency status](https://deps.rs/repo/github/ibnz36/snowboard/status.svg)](https://deps.rs/repo/github/ibnz36/snowboard)
 
 An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 
-[Request a feature/Report a bug](https://github.com/Brian3647/snowboard/issues)
+[Request a feature/Report a bug](https://github.com/ibnz36/snowboard/issues)
 
 </div>
 

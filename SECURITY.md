@@ -6,4 +6,4 @@ The project contributors will do their best to mantain the most used versions as
 
 ## Reporting a Vulnerability
 
-Any clear vulnerability can be notified to brian3647 on discord or by oppening an issue.
+Any clear vulnerability can be notified by oppening an issue.

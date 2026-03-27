@@ -3,18 +3,17 @@ name = "snowboard"
 version = "1.0.3"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/Brian3647/snowboard"
+repository = "https://github.com/ibnz36/snowboard"
 readme = "README.md"
 description = "Extremely simple rust servers 🏂"
 include = ["src/**/*.rs", "Cargo.toml", "LICENSE"]
-rust-version = "1.60.0"
-homepage = "https://github.com/Brian3647/snowboard"
+homepage = "https://github.com/ibnz36/snowboard"
 documentation = "https://docs.rs/snowboard"
 keywords = ["http", "server", "web"]
 categories = ["network-programming", "web-programming::http-server", "parsing", "web-programming"]
 
 [dependencies]
-async-std = { version = "1.12.0", optional = true }
+smol = { version = "2.0.2", optional = true }
 native-tls = { version = "0.2.11", optional = true }
 serde_json = { version = "1.0.108", optional = true }
 serde = { version = "1.0.192", optional = true, features = ["derive"] }
@@ -28,8 +27,8 @@ criterion = "0.5.1"
 
 [features]
 default = []
-full = ["async", "tls", "json", "websocket"]
-async = ["async-std"]
+all = ["async", "tls", "json", "websocket"]
+async = ["smol"]
 tls = ["native-tls"]
 json = ["serde_json", "serde"]
 websocket = ["tungstenite", "base64", "sha1"]
@@ -38,9 +37,10 @@ websocket = ["tungstenite", "base64", "sha1"]
 doctest = false
 required-features = []
 
-[[bench]]
-name = "main"
-harness = false
+# TODO: return bench and test.
+#[[bench]]
+#name = "main"
+#harness = false
 
-[[test]]
-name = "main"
+#[[test]]
+#name = "main"

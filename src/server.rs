@@ -97,7 +97,8 @@ impl Server {
 	/// The default buffer size is 8KiB.
 	///
 	/// If you want requests to actually get parsed, the buffer size must be greater than 5,
-	/// the minimum size of a "valid" HTTP request (`GET /`)
+	/// the minimum size of a "valid" HTTP request (`GET /`). The minimum size is larger on
+	/// secure requests.
 	///
 	/// Consider using a smaller buffer size if your server
 	/// doesn't require bodies in requests, and a larger one if
@@ -185,7 +186,7 @@ impl Server {
 		for (mut stream, mut request) in self {
 			let handler = handler.clone();
 
-			async_std::task::spawn(async move {
+			smol::spawn(async move {
 				#[cfg(feature = "websocket")]
 				if maybe_websocket(ws_handler, &mut stream, &mut request) {
 					return Ok(());
@@ -196,7 +197,8 @@ impl Server {
 					.to_response()
 					.maybe_add_defaults(should_insert)
 					.send_to(&mut stream)
-			});
+			})
+			.detach();
 		}
 
 		unreachable!("Server::run() should never return")
@@ -229,16 +231,13 @@ impl Server {
 	#[cfg(not(feature = "tls"))]
 	#[inline]
 	/// A helper function which handles the requests done from the client.
-	///
-	/// # Error
-	///
-	/// Returns a tuple containing the stream and Client request on success otherwise returns an io
-	/// error on failure.
 	fn try_accept_inner(&self) -> io::Result<(Stream, Request)> {
 		let (stream, ip) = self.acceptor.accept()?;
 		self.handle_request(stream, ip)
 	}
 
+	/// Tries to accept the request as TLS. To do so without breaking it, checks first for TLS
+	/// indicators. If not found, redirects to HTTPS.
 	#[cfg(feature = "tls")]
 	fn try_accept_inner(&self) -> io::Result<(Stream, Request)> {
 		// Using `tls_acceptor` directly consumes the first 4 bytes of the stream,
@@ -308,17 +307,16 @@ impl Server {
 		Ok((stream, req))
 	}
 
-	// Extremely simple HTTP to HTTPS redirect.
+	/// Extremely simple HTTP to HTTPS redirect.
 	#[cfg(feature = "tls")]
 	fn handle_not_tls<T: io::Read + io::Write>(&self, mut stream: T) -> io::Result<()> {
 		let mut buffer: Vec<u8> = vec![0; self.buffer_size];
-
-		stream.read(&mut buffer)?;
+		let length = stream.read(&mut buffer)?;
 
 		let mut path = vec![];
 		let mut in_path = false;
 
-		for byte in buffer.iter() {
+		for byte in buffer.iter().take(length) {
 			if *byte == b' ' {
 				if in_path {
 					break;
