@@ -41,5 +41,5 @@ required-features = []
 #name = "main"
 #harness = false
 
-#[[test]]
-#name = "main"
+[[test]]
+name = "main"

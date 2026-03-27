@@ -10,5 +10,5 @@ fn handle_ws(mut ws: WebSocket) {
 fn main() -> snowboard::Result {
 	Server::new("localhost:3000")?
 		.on_websocket("/ws", handle_ws)
-		.run(|_| "Try `/ws`!")
+		.run(async |_| "Try `/ws`!")
 }

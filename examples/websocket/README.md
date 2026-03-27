@@ -5,11 +5,12 @@ This example implements `tungstenite` to a `snowboard` server, creating a websoc
 ## Usage
 
 ```sh
-$ cargo run --example websocket
+$ cd examples/websocket
+$ cargo run
 ```
 
 ## Test
 
 ```sh
-$ websocat ws://localhost:8080
+$ websocat ws://localhost:3000
 ```
