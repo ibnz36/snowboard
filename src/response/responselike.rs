@@ -26,14 +26,22 @@ impl ResponseLike for () {
 impl ResponseLike for &str {
 	#[inline]
 	fn to_response(self) -> Response {
-		crate::response!(ok, self)
+		crate::response!(
+			ok,
+			self,
+			crate::headers! { "Content-Type" => "text/plain; charset=utf-8" }
+		)
 	}
 }
 
 impl ResponseLike for String {
 	#[inline]
 	fn to_response(self) -> Response {
-		crate::response!(ok, self)
+		crate::response!(
+			ok,
+			self,
+			crate::headers! { "Content-Type" => "text/plain; charset=utf-8" }
+		)
 	}
 }
 

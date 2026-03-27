@@ -26,10 +26,11 @@ pub type Stream = TlsStream<TcpStream>;
 #[cfg(feature = "websocket")]
 use crate::ws::{maybe_websocket, WebSocket};
 
-use std::future::Future;
-
 /// A WebSocket handler function type.
+#[cfg(feature = "websocket")]
 pub type WsHandler<S> = Option<(&'static str, fn(WebSocket<&mut S>))>;
+
+use std::future::Future;
 
 /// Single threaded listener made for simpler servers.
 pub struct Server {
@@ -77,7 +78,7 @@ impl Server {
 	}
 
 	/// Enables automatic insertion of default headers in responses.
-	/// This includes `Server`, `Date` and `Content-Length`.
+	/// This includes `Server` and `Date`.
 	pub fn with_default_headers(mut self) -> Self {
 		self.insert_default_headers = true;
 		self
@@ -183,6 +184,7 @@ impl Server {
 	{
 		let buffer_size = self.buffer_size;
 		let should_insert_defaults = self.insert_default_headers;
+		#[cfg(feature = "websocket")]
 		let ws_handler = self.ws_handler;
 		for (stream, addr) in self {
 			smol::spawn(Self::keep_handling(
@@ -214,18 +216,26 @@ impl Server {
 		T: ResponseLike,
 	{
 		loop {
-			let mut req = match Self::read_request(buffer_size, &mut stream, addr) {
+			#[cfg_attr(not(feature = "websocket"), allow(unused_mut))]
+			let mut req = match Request::read_from(&mut stream, addr, buffer_size) {
 				Ok(req) => req,
 				Err(e) if e.kind() == io::ErrorKind::InvalidInput => {
 					crate::response!(bad_request).send_to(&mut stream).ok();
 					continue;
 				}
+				Err(e)
+					if e.kind() == io::ErrorKind::BrokenPipe
+						|| e.kind() == io::ErrorKind::ConnectionReset
+						|| e.kind() == io::ErrorKind::UnexpectedEof =>
+				{
+					break;
+				}
 				Err(e) => {
-					eprintln!("[internal err] {}", e);
+					eprintln!("[INTERNAL ERROR] {}", e);
 					crate::response!(internal_server_error)
 						.send_to(&mut stream)
 						.ok();
-					continue;
+					break;
 				}
 			};
 
@@ -249,13 +259,16 @@ impl Server {
 				None => false,
 			};
 
-			// can't do much about it if it fails
-			let _ = if keep_alive && !force_close {
+			let body_len = response.bytes.len();
+			response.set_header("content-length", body_len.to_string());
+
+			if keep_alive && !force_close {
 				response.set_header("connection", "keep-alive".into());
-				response.send_to(&mut stream)
 			} else {
-				response.send_to(&mut stream)
+				response.set_header("connection", "close".into());
 			};
+
+			let _ = response.send_to(&mut stream); // can't do much about it if it fails
 		}
 	}
 }
@@ -307,38 +320,6 @@ impl Server {
 			// This doesn't look like a TLS handshake. Handle it as a non-TLS request.
 			self.handle_not_tls(&mut tcp_stream)?;
 			Err(io::Error::from(io::ErrorKind::ConnectionAborted))
-		}
-	}
-
-	/// A helper function which handles request by checking whether the request has an appropriate
-	/// buffer size by checking if it is too large or zero (in other words empty response). Also it
-	/// checks whether the request contains a valid input.
-	///
-	/// # Arguments
-	///
-	/// * `stream` - It takes the stream implementing read and write as an argument.
-	/// * `ip` - It takes the ip address as a SocketAddr type.
-	///
-	/// # Error
-	///
-	/// Returns a tuple containing stream implementing write and read traits and Request struct on
-	/// success otherwise returns an io error on failure.
-	fn read_request<T: io::Write + io::Read>(
-		buffer_size: usize,
-		mut stream: T,
-		ip: SocketAddr,
-	) -> io::Result<Request> {
-		let mut buffer: Vec<u8> = vec![0; buffer_size];
-		let payload_size = stream.read(&mut buffer)?;
-
-		if payload_size == 0 {
-			crate::response!(bad_request).send_to(&mut stream)?;
-			return Err(io::Error::new(io::ErrorKind::InvalidInput, "Empty request"));
-		}
-
-		match Request::new(&buffer[..payload_size], ip) {
-			Some(req) => Ok(req),
-			None => Err(io::Error::from(io::ErrorKind::InvalidInput)),
 		}
 	}
 

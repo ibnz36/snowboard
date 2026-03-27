@@ -7,7 +7,7 @@ fn main() -> snowboard::Result {
 
 	println!("Listening on {}", server.pretty_addr()?);
 
-	server.run(move |mut req| {
+	server.run(async move |mut req| {
 		if req.method == Method::DELETE {
 			return response!(method_not_allowed, "Caught you trying to delete!");
 		}
