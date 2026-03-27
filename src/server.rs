@@ -241,7 +241,7 @@ impl Server {
 
 			#[cfg(feature = "websocket")]
 			if maybe_websocket(ws_handler, &mut stream, &mut req) {
-				return;
+				break;
 			}
 
 			let keep_alive = req.keep_alive();
