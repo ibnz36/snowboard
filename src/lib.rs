@@ -14,10 +14,13 @@ mod util;
 mod ws;
 
 pub use request::Request;
-pub use response::{Headers, Response, ResponseLike, DEFAULT_HTTP_VERSION};
+pub use response::{Headers, Response, ResponseLike};
 pub use server::{Server, Stream, DEFAULT_BUFFER_SIZE};
 pub use url::Url;
-pub use util::{HttpVersion, Method};
+pub use util::Method;
+
+pub use response::DEFAULT_HTTP_VERSION as _DEFAULT_HTTP_VERSION; // we need this for macros
+pub(crate) use util::HttpVersion;
 
 #[cfg(feature = "websocket")]
 /// A WebSocket connection.

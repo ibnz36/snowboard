@@ -13,7 +13,7 @@ keywords = ["http", "server", "web"]
 categories = ["network-programming", "web-programming::http-server", "parsing", "web-programming"]
 
 [dependencies]
-smol = { version = "2.0.2", optional = true }
+smol = "2.0.2"
 native-tls = { version = "0.2.11", optional = true }
 serde_json = { version = "1.0.108", optional = true }
 serde = { version = "1.0.192", optional = true, features = ["derive"] }
@@ -27,8 +27,7 @@ criterion = "0.5.1"
 
 [features]
 default = []
-all = ["async", "tls", "json", "websocket"]
-async = ["smol"]
+all = ["tls", "json", "websocket"]
 tls = ["native-tls"]
 json = ["serde_json", "serde"]
 websocket = ["tungstenite", "base64", "sha1"]

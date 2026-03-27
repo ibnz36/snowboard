@@ -21,7 +21,7 @@ pub struct Response {
 	/// Do note the server only supports HTTP/1.1, so even if
 	/// this is specified as HTTP/2.0 or any other, it'll still
 	/// be a HTTP/1.1 response.
-	pub version: HttpVersion,
+	pub(crate) version: HttpVersion,
 	/// HTTP status code.
 	pub status: u16,
 	/// According text for the status.

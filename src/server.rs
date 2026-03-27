@@ -26,8 +26,10 @@ pub type Stream = TlsStream<TcpStream>;
 #[cfg(feature = "websocket")]
 use crate::ws::{maybe_websocket, WebSocket};
 
-#[cfg(feature = "async")]
 use std::future::Future;
+
+/// A WebSocket handler function type.
+pub type WsHandler<S> = Option<(&'static str, fn(WebSocket<&mut S>))>;
 
 /// Single threaded listener made for simpler servers.
 pub struct Server {
@@ -42,7 +44,7 @@ pub struct Server {
 	tls_acceptor: TlsAcceptor,
 	#[cfg(feature = "websocket")]
 	/// It stores the WebSocket configuration for the HTTP/HTTPS server.
-	ws_handler: Option<(&'static str, fn(WebSocket<&mut Stream>))>,
+	ws_handler: WsHandler<Stream>,
 }
 
 /// Simple rust TCP HTTP server.
@@ -104,8 +106,7 @@ impl Server {
 	/// doesn't require bodies in requests, and a larger one if
 	/// you expect large payloads. 8KiB is a good default, tho.
 	///
-	/// Note that requests bigger than the buffer size will be rejected,
-	/// sending a `413 Payload Too Large` response.
+	/// Note that requests bigger than the buffer size will be cut off.
 	pub fn set_buffer_size(&mut self, size: usize) {
 		self.buffer_size = size;
 	}
@@ -137,47 +138,16 @@ impl Server {
 		self
 	}
 
-	/// Runs the server synchronously using multiple threads.
-	pub fn run<T: ResponseLike>(
-		self,
-		handler: impl Fn(Request) -> T + Send + 'static + Clone,
-	) -> ! {
-		#[cfg(feature = "websocket")]
-		let ws_handler = self.ws_handler.clone();
-
-		let should_insert = self.insert_default_headers;
-
-		// Needed for avoiding warning when compiling without the websocket feature.
-		#[cfg_attr(not(feature = "websocket"), allow(unused_mut))]
-		for (mut stream, mut request) in self {
-			let handler = handler.clone();
-
-			std::thread::spawn(move || {
-				#[cfg(feature = "websocket")]
-				if maybe_websocket(ws_handler, &mut stream, &mut request) {
-					return Ok(());
-				};
-
-				handler(request)
-					.to_response()
-					.maybe_add_defaults(should_insert)
-					.send_to(&mut stream)
-			});
-		}
-
-		unreachable!("Server::run() should never return")
-	}
-
-	/// Runs the server asynchronously using multiple threads.
-	#[cfg(feature = "async")]
-	pub fn run_async<F, T, R>(self, handler: F) -> !
+	/*
+	/// Runs the server asynchronously.
+	pub fn run<F, T, R>(self, handler: F) -> !
 	where
 		F: Fn(Request) -> R + Send + 'static + Clone,
 		R: Future<Output = T> + Send + 'static,
 		T: ResponseLike,
 	{
 		#[cfg(feature = "websocket")]
-		let ws_handler = self.ws_handler.clone();
+		let ws_handler = self.ws_handler;
 
 		let should_insert = self.insert_default_headers;
 
@@ -188,58 +158,133 @@ impl Server {
 
 			smol::spawn(async move {
 				#[cfg(feature = "websocket")]
-				if maybe_websocket(ws_handler, &mut stream, &mut request) {
-					return Ok(());
+				if maybe_websocket(ws_handler, &mut stream, &mut request.clone()) {
+					return;
 				};
 
-				handler(request)
+				let _ = handler(request)
 					.await
 					.to_response()
 					.maybe_add_defaults(should_insert)
-					.send_to(&mut stream)
+					.send_to(&mut stream);
 			})
 			.detach();
 		}
 
 		unreachable!("Server::run() should never return")
+	}*/
+
+	/// Runs the server asynchronously.
+	pub fn run<F, T, R>(self, handler: F) -> !
+	where
+		F: Fn(Request) -> R + Send + 'static + Clone,
+		R: Future<Output = T> + Send + 'static,
+		T: ResponseLike + 'static,
+	{
+		let buffer_size = self.buffer_size;
+		let should_insert_defaults = self.insert_default_headers;
+		let ws_handler = self.ws_handler;
+		for (stream, addr) in self {
+			smol::spawn(Self::keep_handling(
+				buffer_size,
+				should_insert_defaults,
+				stream,
+				addr,
+				handler.clone(),
+				#[cfg(feature = "websocket")]
+				ws_handler,
+			))
+			.detach();
+		}
+
+		unreachable!("should always be listening !")
+	}
+
+	/// Maintains a stream open for requests.
+	async fn keep_handling<F, T, R>(
+		buffer_size: usize,
+		should_insert_defaults: bool,
+		mut stream: Stream,
+		addr: SocketAddr,
+		handler: F,
+		#[cfg(feature = "websocket")] ws_handler: WsHandler<Stream>,
+	) where
+		F: Fn(Request) -> R + Send + 'static,
+		R: Future<Output = T> + Send + 'static,
+		T: ResponseLike,
+	{
+		loop {
+			let mut req = match Self::read_request(buffer_size, &mut stream, addr) {
+				Ok(req) => req,
+				Err(e) if e.kind() == io::ErrorKind::InvalidInput => {
+					crate::response!(bad_request).send_to(&mut stream).ok();
+					continue;
+				}
+				Err(e) => {
+					eprintln!("[internal err] {}", e);
+					crate::response!(internal_server_error)
+						.send_to(&mut stream)
+						.ok();
+					continue;
+				}
+			};
+
+			#[cfg(feature = "websocket")]
+			if maybe_websocket(ws_handler, &mut stream, &mut req) {
+				return;
+			}
+
+			let keep_alive = req.keep_alive();
+
+			let mut response = handler(req)
+				.await
+				.to_response()
+				.maybe_add_defaults(should_insert_defaults);
+
+			let force_close = match &response.headers {
+				Some(h) => {
+					h.get("connection").map(|s| s.to_ascii_lowercase())
+						!= Some("keep-alive".to_string())
+				}
+				None => false,
+			};
+
+			// can't do much about it if it fails
+			let _ = if keep_alive && !force_close {
+				response.set_header("connection", "keep-alive".into());
+				response.send_to(&mut stream)
+			} else {
+				response.send_to(&mut stream)
+			};
+		}
 	}
 }
 
 // This is a workaround to avoid having to copy documentation.
 
 impl Server {
-	/// Try to accept a new incoming request safely.
-	/// Returns an error if the request could not be read, is empty or invalid.
-	/// The request will be read into a buffer and parsed into a `Request` instance.
-	/// The buffer size can be changed with `Server::set_buffer_size()`.
+	/// Try to accept a new incoming stream safely.
 	///
 	/// # Example
 	/// ```rust
-	/// use snowboard::{Request, Response, Server};
-	///
-	/// let server = Server::new("localhost:8080").expect("failed to start server");
-	///
-	/// while let Ok((stream, request)) = server.try_accept() {
-	///     // Handle a request
-	/// }
+	/// TODO
 	/// ```
 	#[inline]
-	pub fn try_accept(&self) -> io::Result<(Stream, Request)> {
+	pub fn try_accept(&self) -> io::Result<(Stream, SocketAddr)> {
 		self.try_accept_inner()
 	}
 
 	#[cfg(not(feature = "tls"))]
 	#[inline]
 	/// A helper function which handles the requests done from the client.
-	fn try_accept_inner(&self) -> io::Result<(Stream, Request)> {
-		let (stream, ip) = self.acceptor.accept()?;
-		self.handle_request(stream, ip)
+	fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
+		self.acceptor.accept()
 	}
 
 	/// Tries to accept the request as TLS. To do so without breaking it, checks first for TLS
 	/// indicators. If not found, redirects to HTTPS.
 	#[cfg(feature = "tls")]
-	fn try_accept_inner(&self) -> io::Result<(Stream, Request)> {
+	fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
 		// Using `tls_acceptor` directly consumes the first 4 bytes of the stream,
 		// making redirects hard (and maybe impossible) to implement. `native_tls` uses
 		// different implementations (even externally) for `TlsAcceptor`, so the only
@@ -252,7 +297,7 @@ impl Server {
 		if buffer == [0x16, 0x03] {
 			// This looks like a TLS handshake.
 			match self.tls_acceptor.accept(tcp_stream) {
-				Ok(tls_stream) => self.handle_request(tls_stream, ip),
+				Ok(t) => Ok((t, ip)),
 				Err(_) => {
 					// Continue to the next connection
 					Err(io::Error::from(io::ErrorKind::ConnectionAborted))
@@ -278,33 +323,23 @@ impl Server {
 	///
 	/// Returns a tuple containing stream implementing write and read traits and Request struct on
 	/// success otherwise returns an io error on failure.
-	fn handle_request<T: io::Write + io::Read>(
-		&self,
+	fn read_request<T: io::Write + io::Read>(
+		buffer_size: usize,
 		mut stream: T,
 		ip: SocketAddr,
-	) -> io::Result<(T, Request)> {
-		let mut buffer: Vec<u8> = vec![0; self.buffer_size];
+	) -> io::Result<Request> {
+		let mut buffer: Vec<u8> = vec![0; buffer_size];
 		let payload_size = stream.read(&mut buffer)?;
-
-		if payload_size > self.buffer_size {
-			crate::response!(payload_too_large).send_to(&mut stream)?;
-			return Err(io::Error::new(
-				io::ErrorKind::InvalidInput,
-				"Payload too large",
-			));
-		}
 
 		if payload_size == 0 {
 			crate::response!(bad_request).send_to(&mut stream)?;
 			return Err(io::Error::new(io::ErrorKind::InvalidInput, "Empty request"));
 		}
 
-		let req = match Request::new(&buffer[..payload_size], ip) {
-			Some(req) => req,
-			None => return Err(io::Error::from(io::ErrorKind::InvalidInput)),
-		};
-
-		Ok((stream, req))
+		match Request::new(&buffer[..payload_size], ip) {
+			Some(req) => Ok(req),
+			None => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+		}
 	}
 
 	/// Extremely simple HTTP to HTTPS redirect.
@@ -349,7 +384,7 @@ impl Server {
 }
 
 impl Iterator for Server {
-	type Item = (Stream, Request);
+	type Item = (Stream, SocketAddr);
 
 	fn next(&mut self) -> Option<Self::Item> {
 		match self.try_accept() {

@@ -1,4 +1,4 @@
-use snowboard::{headers, response, HttpVersion, Response};
+use snowboard::{headers, response, Response};
 
 #[test]
 fn response_generation() {
@@ -31,12 +31,11 @@ fn response_generation() {
 	let custom_http_version = response!(
 		switching_protocols,
 		[],          // No body
-		headers! {}, // No headers
-		HttpVersion::V3_0
+		headers! {}  // No headers
 	);
 
 	assert_eq!(
 		custom_http_version.to_string(),
-		"HTTP/3.0 101 Switching Protocols\r\n\r\n"
+		"HTTP/1.1 101 Switching Protocols\r\n\r\n"
 	);
 }

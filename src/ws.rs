@@ -2,6 +2,8 @@
 
 use std::{collections::HashMap, io};
 
+#[cfg(feature = "websocket")]
+use crate::server::WsHandler;
 use crate::{headers, Request};
 
 use base64::engine::general_purpose::STANDARD as BASE64ENGINE;
@@ -62,9 +64,9 @@ impl Request {
 /// If upgrading succeeds, the WebSocket is passed to `self.ws_handler`.
 /// Does nothing if the request is not a WebSocket handshake request.
 #[cfg(feature = "websocket")]
-pub fn maybe_websocket<Stream: io::Write>(
-	handler: Option<(&'static str, fn(WebSocket<&mut Stream>))>,
-	stream: &mut Stream,
+pub fn maybe_websocket<S: io::Write>(
+	handler: WsHandler<S>,
+	stream: &mut S,
 	req: &mut Request,
 ) -> bool {
 	let handler = match handler {
@@ -72,7 +74,7 @@ pub fn maybe_websocket<Stream: io::Write>(
 		_ => return false,
 	};
 
-	// Calls `handler` if `request.upgrade(..)` returns `Some(..)`.
-	req.upgrade(stream).map(handler);
-	true
+	// Calls `handler` if `request.upgrade(..)` returns `Some(..)`, in which case we know it's
+	// a WebSocket handshake request and that we can upgrade it.
+	req.upgrade(stream).map(handler).is_some()
 }

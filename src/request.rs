@@ -148,17 +148,17 @@ impl Request {
 	///
 	/// #[derive(Deserialize)]
 	/// struct MyBody {
-	/// 	foo: String,
+	///    foo: String,
 	/// }
 	///
 	/// fn main() -> snowboard::Result {
-	/// 	Server::new("localhost:3000")?.run(|r| {
-	/// 		let body: MyBody = r.force_json()?;
+	///    Server::new("localhost:3000")?.run(|r| {
+	///        let body: MyBody = r.force_json()?;
 	///
-	/// 		Ok(serde_json::json!({
-	/// 			"foo": body.foo,
-	/// 		}))
-	/// 	})
+	///        Ok(serde_json::json!({
+	///            "foo": body.foo,
+	///        }))
+	///    })
 	/// }
 	/// ```
 	#[cfg(feature = "json")]
@@ -178,5 +178,18 @@ impl Request {
 	/// Get the IP address of the client, formatted.
 	pub fn pretty_ip(&self) -> String {
 		crate::util::format_addr(self.ip)
+	}
+
+	/// Check if the request should be kept alive.
+	pub fn keep_alive(&self) -> bool {
+		self.headers
+			.get("connection")
+			.map(|s| s.to_ascii_lowercase())
+			!= Some("false".to_string())
+			|| self
+				.headers
+				.get("connection")
+				.map(|s| s.to_ascii_lowercase())
+				== Some("keep-alive".to_string())
 	}
 }
