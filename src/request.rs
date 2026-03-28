@@ -195,7 +195,7 @@ impl Request {
 
 	/// Tries to read a request from a stream.
 	pub async fn read_from<T: AsyncRead + Unpin + AsyncWrite>(
-		mut stream: T,
+		mut stream: &mut T,
 		addr: SocketAddr,
 		buffer_size: usize,
 	) -> io::Result<Request> {

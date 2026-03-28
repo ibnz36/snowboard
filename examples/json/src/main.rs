@@ -6,12 +6,16 @@ struct Example {
 	number: isize,
 }
 
-fn main() -> snowboard::Result {
-	Server::new("localhost:8080")?.run(|req| -> Result<Value, Response> {
-		let example: Example = req.force_json()?;
+#[smol_potat::main]
+async fn main() -> snowboard::Result {
+	Server::new("localhost:8080")
+		.await?
+		.run(async |req| -> Result<Value, Response> {
+			let example: Example = req.force_json()?;
 
-		Ok(serde_json::json!({
-			"number_plus_one": example.number + 1
-		}))
-	});
+			Ok(serde_json::json!({
+				"number_plus_one": example.number + 1
+			}))
+		})
+		.await
 }

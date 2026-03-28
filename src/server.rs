@@ -12,6 +12,9 @@ use std::io;
 use smol::net::{AsyncToSocketAddrs, SocketAddr, TcpListener, TcpStream};
 
 #[cfg(feature = "tls")]
+use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+
+#[cfg(feature = "tls")]
 use async_native_tls::{TlsAcceptor, TlsStream};
 
 /// A TCP stream
@@ -212,7 +215,9 @@ impl Server {
 			};
 
 			#[cfg(feature = "websocket")]
-			if maybe_websocket(ws_handler.clone(), stream.clone(), &mut req).await {
+			if let Err(new_stream) = maybe_websocket(ws_handler.clone(), stream, &mut req).await {
+				stream = new_stream;
+			} else {
 				break;
 			}
 
@@ -232,7 +237,7 @@ impl Server {
 			};
 
 			let body_len = response.bytes.len();
-			response.set_header("content-length", body_len.to_string());
+			response.set_header("Content-Length", body_len.to_string());
 
 			if keep_alive && !force_close {
 				response.set_header("connection", "keep-alive".into());
@@ -279,7 +284,7 @@ impl Server {
 
 		let (mut tcp_stream, ip) = self.acceptor.accept().await?;
 
-		tcp_stream.set_nodelay(true)?; // <-- add this
+		tcp_stream.set_nodelay(true)?;
 
 		let mut buffer = [0; 2];
 		tcp_stream.peek(&mut buffer).await?;
@@ -329,17 +334,18 @@ impl Server {
 
 		let path = String::from_utf8_lossy(&path).to_string();
 
-		crate::response!(
-			moved_permanently,
+		let mut res = crate::response!(
+			permanent_redirect,
 			[],
 			crate::headers! {
 				"Location" => format!("https://{}{}", self.pretty_addr().unwrap_or_default(), path),
 				"Connection" => "keep-alive",
-				"Content-Length" => 0
 			}
-		)
-		.send_to(&mut stream)
-		.await?;
+		);
+
+		println!("{}", res);
+
+		res.send_to(&mut stream).await?;
 
 		Ok(())
 	}

@@ -63,6 +63,7 @@ impl Response {
 		let prev = self.prepare_response().into_bytes();
 		stream.write_all(&prev).await?;
 		stream.write_all(&self.bytes).await?;
+		stream.write_all(b"\r\n").await?;
 		stream.flush().await
 	}
 

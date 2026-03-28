@@ -15,7 +15,7 @@ use smol::io::{AsyncRead, AsyncWrite};
 use sha1::{Digest, Sha1};
 
 /// Builds the handshake headers for a WebSocket connection.
-fn build_handshake(sec_key: String) -> HashMap<&'static str, String> {
+fn build_handshake(sec_key: &String) -> HashMap<&'static str, String> {
 	let mut sha1 = Sha1::new();
 	sha1.update(sec_key.as_bytes());
 	sha1.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
@@ -45,20 +45,23 @@ impl Request {
 	pub async fn upgrade<T: AsyncWrite + AsyncRead + Unpin>(
 		&mut self,
 		mut stream: T,
-	) -> Option<WebSocketStream<T>> {
+	) -> Result<WebSocketStream<T>, T> {
 		if !self.is_websocket() {
-			return None;
+			return Err(stream);
 		}
 
-		let ws_key = self.headers.get("Sec-WebSocket-Key")?.clone();
+		let ws_key = match self.headers.get("Sec-WebSocket-Key") {
+			Some(key) => key,
+			None => return Err(stream),
+		};
+
 		let handshake = build_handshake(ws_key);
 
-		crate::response!(switching_protocols, [], handshake)
+		let _ = crate::response!(switching_protocols, [], handshake)
 			.send_to(&mut stream)
-			.await
-			.ok()?;
+			.await;
 
-		Some(WebSocketStream::from_raw_socket(stream, protocol::Role::Server, None).await)
+		Ok(WebSocketStream::from_raw_socket(stream, protocol::Role::Server, None).await)
 	}
 }
 
@@ -70,18 +73,18 @@ pub async fn maybe_websocket<S: AsyncWrite + Unpin + AsyncRead + Send + 'static>
 	handler: WsHandler<S>,
 	stream: S,
 	req: &mut Request,
-) -> bool {
+) -> Result<(), S> {
 	let handler = match handler {
 		Some((path, f)) if req.url.starts_with(path) => f,
-		_ => return false,
+		_ => return Err(stream),
 	};
 
-	if let Some(s) = req.upgrade(stream).await {
-		println!("reaches");
-		let h = handler.clone();
-		h(s);
-		true
-	} else {
-		false
+	match req.upgrade(stream).await {
+		Ok(s) => {
+			let h = handler.clone();
+			h(s);
+			Ok(())
+		}
+		Err(s) => Err(s),
 	}
 }

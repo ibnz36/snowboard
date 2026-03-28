@@ -31,6 +31,10 @@ macro_rules! response {
 		$crate::Response::default()
 	};
 
+	(continue $(, $($rest:expr),* )?) => {
+		$crate::response!(continue_ $(, $($rest),* )?)
+	};
+
 	($type:ident) => {
 		$crate::Response::$type(vec![], None, $crate::_DEFAULT_HTTP_VERSION)
 	};

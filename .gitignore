@@ -1,6 +1,6 @@
 **/target
-.vscode
-.zed
+.vscode/*
+**/.zed
 
 # Sample test folder I use. Nothing important.
 examples/tests
