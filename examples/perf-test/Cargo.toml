@@ -5,4 +5,8 @@ edition = "2021"
 
 [dependencies.snowboard]
 path = "../../"
-features = ["async"]
+features = []
+
+[dependencies]
+smol-potat = {version ="*", features = ["auto"]}
+mimalloc = { version = "0.1", default-features = false }
