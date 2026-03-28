@@ -60,6 +60,7 @@ impl Response {
 		&mut self,
 		stream: &mut T,
 	) -> Result<(), io::Error> {
+		self.set_content_length();
 		let prev = self.prepare_response().into_bytes();
 		stream.write_all(&prev).await?;
 		stream.write_all(&self.bytes).await?;
@@ -92,9 +93,10 @@ impl Response {
 		self
 	}
 
-	/// Sets the content length of a reference to a response
-	pub fn set_content_length(&mut self, len: usize) -> &mut Self {
-		self.set_header("Content-Length", len.to_string())
+	/// Sets the content length of the response
+	pub fn set_content_length(&mut self) -> &mut Self {
+		// the +2 is because of the obligatory "\r\n" at the end of responses
+		self.set_header("Content-Length", (self.len() + 2).to_string())
 	}
 
 	/// Returns the first lines of the generated response. (everything except the body)

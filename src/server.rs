@@ -230,14 +230,10 @@ impl Server {
 
 			let force_close = match &response.headers {
 				Some(h) => {
-					h.get("connection").map(|s| s.to_ascii_lowercase())
-						!= Some("keep-alive".to_string())
+					h.get("connection").map(|s| s.to_ascii_lowercase()) == Some("close".to_string())
 				}
 				None => false,
 			};
-
-			let body_len = response.bytes.len();
-			response.set_header("Content-Length", body_len.to_string());
 
 			if keep_alive && !force_close {
 				response.set_header("connection", "keep-alive".into());

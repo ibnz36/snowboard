@@ -25,7 +25,7 @@ create_response_types!(
 	switching_protocols, 101, "Switching Protocols";
 	processing, 102, "Processing";
 	early_hints, 103, "Early Hints";
-	ok, 200, "Ok";
+	ok, 200, "OK";
 	created, 201, "Created";
 	accepted, 202, "Accepted";
 	non_authoritative_information, 203, "Non-Authoritative Information";
