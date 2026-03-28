@@ -21,8 +21,8 @@ pub struct Request {
 	/// Method used in the request. Might be Method::Unknown if parsing fails.
 	pub method: Method,
 	/// Body of the request, in bytes.
-	/// Use [`Request::text`], [`Request::json`], or [`Request::force_json`]
-	/// to get a parsed version of the body.
+	/// Use [`Request::text`], [`Request::json`] (json feature), or [`Request::expect_json`]
+	/// (json feature) to get a parsed version of the body.
 	pub body: Vec<u8>,
 	/// Parsed headers.
 	pub headers: HashMap<String, String>,
@@ -128,7 +128,7 @@ impl Request {
 	/// Get the body as a JSON value.
 	///
 	/// This is only intended for custom invalid JSON handling.
-	/// Use [`Request::force_json`] to be able to use the `?` operator.
+	/// Use [`Request::expect_json`] to be able to use the `?` operator.
 	#[cfg(feature = "json")]
 	pub fn json<T>(&self) -> serde_json::Result<T>
 	where
@@ -153,7 +153,7 @@ impl Request {
 	///
 	/// fn main() -> snowboard::Result {
 	///    Server::new("localhost:3000")?.run(|r| {
-	///        let body: MyBody = r.force_json()?;
+	///        let body: MyBody = r.expect_json()?;
 	///
 	///        Ok(serde_json::json!({
 	///            "foo": body.foo,
@@ -162,7 +162,7 @@ impl Request {
 	/// }
 	/// ```
 	#[cfg(feature = "json")]
-	pub fn force_json<T>(&self) -> Result<T, crate::Response>
+	pub fn expect_json<T>(&self) -> Result<T, crate::Response>
 	where
 		T: for<'a> serde::de::Deserialize<'a>,
 	{

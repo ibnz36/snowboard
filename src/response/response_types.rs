@@ -4,15 +4,13 @@
 use crate::{Headers, HttpVersion, Response};
 
 /// Macro rule used to create response types during compile time.
-/// We don't want every function to have documentation for it,
-/// since it would bloat the documentation, so we hide it.
 macro_rules! create_response_types {
     ($($name:ident, $code:expr, $text:expr);*) => {
 		type OptHeaders = Option<Headers>;
 		type HttpV = HttpVersion;
         impl Response {
         $(
-            #[inline(always)] #[doc(hidden)] pub fn $name(b: Vec<u8>, h: OptHeaders, v: HttpV) -> Self {
+            #[doc(hidden)] #[inline(always)] pub fn $name(b: Vec<u8>, h: OptHeaders, v: HttpV) -> Self {
                 Self::new(v, $code, $text, b, h)
             }
         )*

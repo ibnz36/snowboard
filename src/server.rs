@@ -113,7 +113,7 @@ impl Server {
 	}
 
 	/// Sets the buffer size and returns self.
-	/// See [`set_buffer_size`].
+	/// See [`Server::set_buffer_size`].
 	pub fn with_buffer_size(mut self, size: usize) -> Self {
 		self.buffer_size = size;
 		self

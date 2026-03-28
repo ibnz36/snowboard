@@ -27,7 +27,6 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
     -   [**Integration**](#integration)
         -   [**JSON**](#json)
         -   [**ResponseLike**](#responselike)
-    -   [**MSRV (Minimum Supported Rust Version)**](#msrv-minimum-supported-rust-version)
     -   [**Contributing**](#contributing)
     -   [**License**](#license)
 
@@ -187,7 +186,7 @@ struct Example {
 
 fn main() -> snowboard::Result {
     Server::new("localhost:8080")?.run(|req| -> Result<Value, Response> {
-        let example: Example = req.force_json()?;
+        let example: Example = req.expect_json()?;
 
         Ok(serde_json::json!({
             "number_plus_one": example.number + 1
@@ -212,7 +211,7 @@ fn main() -> snowboard::Result {
 }
 ```
 
-`force_json` returns a result of either the parsed JSON or a bad request response. If you want to handle the error yourself, use `json` instead.
+`expect_json` returns a result of either the parsed JSON or a bad request response. If you want to handle the error yourself, use `json` instead.
 
 ### **ResponseLike**
 
@@ -236,10 +235,6 @@ fn main() -> snowboard::Result {
         .run(|_| Example { num: 5 });
 }
 ```
-
-## **MSRV (Minimum Supported Rust Version)**
-
-The MSRV is 1.60.0, but it might change (lower or higher) depending on which features are enabled.
 
 ## **Contributing**
 

@@ -38,7 +38,7 @@ pub type Headers = HashMap<&'static str, String>;
 
 impl Response {
 	/// Manually create a Response instance.
-	/// Use Response::ok(), Response::bad_request() etc. instead when possible.
+	/// Also see the [`crate::response!`] macro, which is the recommended way to create responses.
 	pub fn new(
 		version: HttpVersion,
 		status: u16,
