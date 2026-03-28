@@ -35,6 +35,8 @@ pub type WsHandler<S> = Option<(&'static str, WsHandlerFn<S>)>;
 type WsHandlerFn<S> = Arc<dyn Fn(WebSocketStream<S>) + Send + Sync + 'static>;
 
 use std::future::Future;
+
+#[cfg(feature = "websocket")]
 use std::sync::Arc;
 
 /// Single threaded listener made for simpler servers.
