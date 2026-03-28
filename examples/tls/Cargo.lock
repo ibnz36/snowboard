@@ -1408,7 +1408,6 @@ name = "tls"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-native-tls",
  "smol",
  "smol-potat",
  "snowboard",

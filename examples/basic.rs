@@ -1,5 +1,6 @@
 use snowboard::{headers, response, Method, Server};
 
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
 	let data = "Hello, world!";
 
@@ -7,15 +8,17 @@ async fn main() -> snowboard::Result {
 
 	println!("Listening on {}", server.pretty_addr()?);
 
-	server.run(async move |mut req| {
-		if req.method == Method::DELETE {
-			return response!(method_not_allowed, "Caught you trying to delete!");
-		}
+	server
+		.run(async move |mut req| {
+			if req.method == Method::DELETE {
+				return response!(method_not_allowed, "Caught you trying to delete!");
+			}
 
-		req.set_header("X-Server", "Snowboard");
+			req.set_header("X-Server", "Snowboard");
 
-		println!("{req:#?}");
+			println!("{req:#?}");
 
-		response!(ok, data, headers! { "X-Hello" => "World!" })
-	})
+			response!(ok, data, headers! { "X-Hello" => "World!" })
+		})
+		.await
 }

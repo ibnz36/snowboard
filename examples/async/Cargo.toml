@@ -10,3 +10,4 @@ path = "../.."
 features = []
 
 [dependencies]
+smol_potat = "1.1.2"

@@ -331,7 +331,7 @@ impl Server {
 	}
 
 	/// Waits for the next stream to be accepted.
-	async fn next_stream(&mut self) -> (Stream, SocketAddr) {
+	pub async fn next_stream(&mut self) -> (Stream, SocketAddr) {
 		loop {
 			match self.try_accept().await {
 				Ok(r) => return r,

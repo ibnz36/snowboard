@@ -4,6 +4,7 @@ async fn index(_: Request) -> impl ResponseLike {
 	"Async works!"
 }
 
-fn main() -> Result {
-	Server::new("localhost:8080")?.run(index)
+#[smol_potat::main]
+async fn main() -> Result {
+	Server::new("localhost:8080").await?.run(index).await
 }

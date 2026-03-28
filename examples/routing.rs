@@ -10,6 +10,7 @@ async fn router(req: Request) -> impl ResponseLike {
 	}
 }
 
-fn main() -> Result {
-	Server::new("localhost:8080")?.run(router);
+#[smol_potat::main]
+async fn main() -> Result {
+	Server::new("localhost:8080").await?.run(router).await
 }

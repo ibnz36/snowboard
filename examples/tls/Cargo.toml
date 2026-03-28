@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.102"
-async-native-tls = "0.6.0"
 smol = "2.0.2"
 smol-potat = "1.1.2"
 
