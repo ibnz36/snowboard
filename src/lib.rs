@@ -28,7 +28,7 @@ pub type WebSocket<'a> = tungstenite::WebSocket<&'a mut Stream>;
 
 #[cfg(feature = "tls")]
 // Re-export needed structs for `Server::new(...)` with TLS.
-pub use native_tls::{Identity, TlsAcceptor};
+pub use async_native_tls::TlsAcceptor;
 
 /// A type alias for `std::io::Result<()>`
 /// used in `Server::new()?.run(...)`.

@@ -7,13 +7,14 @@ use crate::ResponseLike;
 /// It's set to 8KiB by default.
 pub const DEFAULT_BUFFER_SIZE: usize = 1024 * 8;
 
-use std::{
-	io,
-	net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},
-};
+use std::io;
+
+use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+
+use smol::net::{AsyncToSocketAddrs, SocketAddr, TcpListener, TcpStream};
 
 #[cfg(feature = "tls")]
-use native_tls::{TlsAcceptor, TlsStream};
+use async_native_tls::{TlsAcceptor, TlsStream};
 
 /// A TCP stream
 #[cfg(not(feature = "tls"))]
@@ -52,12 +53,12 @@ pub struct Server {
 impl Server {
 	/// Create a new server instance.
 	/// The server will listen on the given address.
-	pub fn new(
-		addr: impl ToSocketAddrs,
+	pub async fn new(
+		addr: impl AsyncToSocketAddrs,
 		#[cfg(feature = "tls")] tls_acceptor: TlsAcceptor,
 	) -> io::Result<Self> {
 		Ok(Self {
-			acceptor: TcpListener::bind(addr)?,
+			acceptor: TcpListener::bind(addr).await?,
 			buffer_size: DEFAULT_BUFFER_SIZE,
 			#[cfg(feature = "websocket")]
 			ws_handler: None,
@@ -129,44 +130,8 @@ impl Server {
 		self
 	}
 
-	/*
 	/// Runs the server asynchronously.
-	pub fn run<F, T, R>(self, handler: F) -> !
-	where
-		F: Fn(Request) -> R + Send + 'static + Clone,
-		R: Future<Output = T> + Send + 'static,
-		T: ResponseLike,
-	{
-		#[cfg(feature = "websocket")]
-		let ws_handler = self.ws_handler;
-
-		let should_insert = self.insert_default_headers;
-
-		// Needed for avoiding warning when compiling without the websocket feature.
-		#[cfg_attr(not(feature = "websocket"), allow(unused_mut))]
-		for (mut stream, mut request) in self {
-			let handler = handler.clone();
-
-			smol::spawn(async move {
-				#[cfg(feature = "websocket")]
-				if maybe_websocket(ws_handler, &mut stream, &mut request.clone()) {
-					return;
-				};
-
-				let _ = handler(request)
-					.await
-					.to_response()
-					.maybe_add_defaults(should_insert)
-					.send_to(&mut stream);
-			})
-			.detach();
-		}
-
-		unreachable!("Server::run() should never return")
-	}*/
-
-	/// Runs the server asynchronously.
-	pub fn run<F, T, R>(self, handler: F) -> !
+	pub async fn run<F, T, R>(mut self, handler: F) -> !
 	where
 		F: Fn(Request) -> R + Send + 'static + Clone,
 		R: Future<Output = T> + Send + 'static,
@@ -176,7 +141,8 @@ impl Server {
 		let should_insert_defaults = self.insert_default_headers;
 		#[cfg(feature = "websocket")]
 		let ws_handler = self.ws_handler;
-		for (stream, addr) in self {
+		loop {
+			let (stream, addr) = self.next_stream().await;
 			smol::spawn(Self::keep_handling(
 				buffer_size,
 				should_insert_defaults,
@@ -188,8 +154,6 @@ impl Server {
 			))
 			.detach();
 		}
-
-		unreachable!("should always be listening !")
 	}
 
 	/// Maintains a stream open for requests.
@@ -207,10 +171,13 @@ impl Server {
 	{
 		loop {
 			#[cfg_attr(not(feature = "websocket"), allow(unused_mut))]
-			let mut req = match Request::read_from(&mut stream, addr, buffer_size) {
+			let mut req = match Request::read_from(&mut stream, addr, buffer_size).await {
 				Ok(req) => req,
 				Err(e) if e.kind() == io::ErrorKind::InvalidInput => {
-					crate::response!(bad_request).send_to(&mut stream).ok();
+					crate::response!(bad_request)
+						.send_to(&mut stream)
+						.await
+						.ok();
 					continue;
 				}
 				Err(e)
@@ -224,13 +191,14 @@ impl Server {
 					eprintln!("[INTERNAL ERROR] {}", e);
 					crate::response!(internal_server_error)
 						.send_to(&mut stream)
+						.await
 						.ok();
 					break;
 				}
 			};
 
 			#[cfg(feature = "websocket")]
-			if maybe_websocket(ws_handler, &mut stream, &mut req) {
+			if maybe_websocket(ws_handler, &mut stream, &mut req).await {
 				break;
 			}
 
@@ -258,7 +226,7 @@ impl Server {
 				response.set_header("connection", "close".into());
 			};
 
-			let _ = response.send_to(&mut stream); // can't do much about it if it fails
+			let _ = response.send_to(&mut stream).await; // can't do much about it if it fails
 		}
 	}
 }
@@ -273,33 +241,38 @@ impl Server {
 	/// TODO
 	/// ```
 	#[inline]
-	pub fn try_accept(&self) -> io::Result<(Stream, SocketAddr)> {
-		self.try_accept_inner()
+	pub async fn try_accept(&self) -> io::Result<(Stream, SocketAddr)> {
+		self.try_accept_inner().await
 	}
 
 	#[cfg(not(feature = "tls"))]
 	#[inline]
 	/// A helper function which handles the requests done from the client.
-	fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
-		self.acceptor.accept()
+	async fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
+		let (stream, addr) = self.acceptor.accept().await?;
+		stream.set_nodelay(true)?;
+		Ok((stream, addr))
 	}
 
 	/// Tries to accept the request as TLS. To do so without breaking it, checks first for TLS
 	/// indicators. If not found, redirects to HTTPS.
 	#[cfg(feature = "tls")]
-	fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
+	async fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
 		// Using `tls_acceptor` directly consumes the first 4 bytes of the stream,
 		// making redirects hard (and maybe impossible) to implement. `native_tls` uses
 		// different implementations (even externally) for `TlsAcceptor`, so the only
 		// safe way is this.
 
-		let (mut tcp_stream, ip) = self.acceptor.accept()?;
+		let (mut tcp_stream, ip) = self.acceptor.accept().await?;
+
+		tcp_stream.set_nodelay(true)?; // <-- add this
+
 		let mut buffer = [0; 2];
-		tcp_stream.peek(&mut buffer)?;
+		tcp_stream.peek(&mut buffer).await?;
 
 		if buffer == [0x16, 0x03] {
 			// This looks like a TLS handshake.
-			match self.tls_acceptor.accept(tcp_stream) {
+			match self.tls_acceptor.accept(tcp_stream).await {
 				Ok(t) => Ok((t, ip)),
 				Err(_) => {
 					// Continue to the next connection
@@ -308,16 +281,19 @@ impl Server {
 			}
 		} else {
 			// This doesn't look like a TLS handshake. Handle it as a non-TLS request.
-			self.handle_not_tls(&mut tcp_stream)?;
+			self.handle_not_tls(&mut tcp_stream).await?;
 			Err(io::Error::from(io::ErrorKind::ConnectionAborted))
 		}
 	}
 
 	/// Extremely simple HTTP to HTTPS redirect.
 	#[cfg(feature = "tls")]
-	fn handle_not_tls<T: io::Read + io::Write>(&self, mut stream: T) -> io::Result<()> {
+	async fn handle_not_tls<T: AsyncRead + AsyncWrite + Unpin>(
+		&self,
+		mut stream: T,
+	) -> io::Result<()> {
 		let mut buffer: Vec<u8> = vec![0; self.buffer_size];
-		let length = stream.read(&mut buffer)?;
+		let length = stream.read(&mut buffer).await?;
 
 		let mut path = vec![];
 		let mut in_path = false;
@@ -348,30 +324,29 @@ impl Server {
 				"Content-Length" => 0
 			}
 		)
-		.send_to(&mut stream)?;
+		.send_to(&mut stream)
+		.await?;
 
 		Ok(())
 	}
-}
 
-impl Iterator for Server {
-	type Item = (Stream, SocketAddr);
-
-	fn next(&mut self) -> Option<Self::Item> {
-		match self.try_accept() {
-			Ok(r) => Some(r),
-			// TLS errors, parse requests and cancelled connections are ignored.
-			Err(e)
-				if e.kind() == io::ErrorKind::ConnectionAborted
-					|| e.kind() == io::ErrorKind::ConnectionReset
-					|| e.kind() == io::ErrorKind::InvalidInput =>
-			{
-				self.next()
-			}
-			Err(e) => {
-				// Probably an important error.
-				eprintln!("Server generated error: {:#?}", e);
-				self.next() // Continue anyways. We don't want to stop the server at production.
+	/// Waits for the next stream to be accepted.
+	async fn next_stream(&mut self) -> (Stream, SocketAddr) {
+		loop {
+			match self.try_accept().await {
+				Ok(r) => return r,
+				Err(e)
+					if e.kind() == io::ErrorKind::ConnectionAborted
+						|| e.kind() == io::ErrorKind::ConnectionReset
+						|| e.kind() == io::ErrorKind::InvalidInput =>
+				{
+					continue;
+				}
+				Err(e) => {
+					eprintln!("[internal server error !!] {}", e);
+					eprintln!("[internal server error !!] {:#?}", e);
+					continue;
+				}
 			}
 		}
 	}

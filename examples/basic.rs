@@ -1,9 +1,9 @@
 use snowboard::{headers, response, Method, Server};
 
-fn main() -> snowboard::Result {
+async fn main() -> snowboard::Result {
 	let data = "Hello, world!";
 
-	let server = Server::new("localhost:8080")?;
+	let server = Server::new("localhost:8080").await?;
 
 	println!("Listening on {}", server.pretty_addr()?);
 

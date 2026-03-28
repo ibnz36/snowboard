@@ -5,6 +5,7 @@ mod response_types;
 mod responselike;
 
 pub use responselike::ResponseLike;
+use smol::io::{AsyncWrite, AsyncWriteExt};
 
 use std::{collections::HashMap, fmt, io};
 
@@ -55,11 +56,14 @@ impl Response {
 	}
 
 	/// Writes the response, consuming its body.
-	pub fn send_to<T: io::Write>(&mut self, stream: &mut T) -> Result<(), io::Error> {
+	pub async fn send_to<T: AsyncWrite + Unpin>(
+		&mut self,
+		stream: &mut T,
+	) -> Result<(), io::Error> {
 		let prev = self.prepare_response().into_bytes();
-		stream.write_all(&prev)?;
-		stream.write_all(&self.bytes)?;
-		stream.flush()
+		stream.write_all(&prev).await?;
+		stream.write_all(&self.bytes).await?;
+		stream.flush().await
 	}
 
 	/// Sets a header to the response, returning the response itself.

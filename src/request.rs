@@ -1,5 +1,6 @@
 //! A module that provides code to handle https/http requests.
 
+use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use std::{borrow::Cow, collections::HashMap, io, net::SocketAddr};
 
 use crate::{Method, Url};
@@ -193,16 +194,16 @@ impl Request {
 	}
 
 	/// Tries to read a request from a stream.
-	pub fn read_from<T: io::Write + io::Read>(
+	pub async fn read_from<T: AsyncRead + Unpin + AsyncWrite>(
 		mut stream: T,
 		addr: SocketAddr,
 		buffer_size: usize,
 	) -> io::Result<Request> {
 		let mut buffer: Vec<u8> = vec![0; buffer_size];
-		let payload_size = stream.read(&mut buffer)?;
+		let payload_size = stream.read(&mut buffer).await?;
 
 		if payload_size == 0 {
-			crate::response!(bad_request).send_to(&mut stream)?;
+			crate::response!(bad_request).send_to(&mut stream).await?;
 			return Err(io::Error::new(io::ErrorKind::InvalidInput, "Empty request"));
 		}
 

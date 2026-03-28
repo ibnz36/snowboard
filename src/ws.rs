@@ -1,8 +1,7 @@
 //! A module that provides code to handle the websocketing funtionality of the server-client.
 
-use std::{collections::HashMap, io};
+use std::collections::HashMap;
 
-#[cfg(feature = "websocket")]
 use crate::server::WsHandler;
 use crate::{headers, Request};
 
@@ -10,6 +9,7 @@ use base64::engine::general_purpose::STANDARD as BASE64ENGINE;
 use base64::Engine;
 
 use sha1::{Digest, Sha1};
+use smol::io::AsyncWrite;
 pub(crate) use tungstenite::WebSocket;
 
 /// Builds the handshake headers for a WebSocket connection.
@@ -40,7 +40,7 @@ impl Request {
 
 	/// Upgrades a request to a WebSocket connection.
 	/// Returns `None` if the request is not a WebSocket handshake request.
-	pub fn upgrade<T: io::Write>(&mut self, mut stream: T) -> Option<WebSocket<T>> {
+	pub async fn upgrade<T: AsyncWrite + Unpin>(&mut self, mut stream: T) -> Option<WebSocket<T>> {
 		if !self.is_websocket() {
 			return None;
 		}
@@ -50,6 +50,7 @@ impl Request {
 
 		crate::response!(switching_protocols, [], handshake)
 			.send_to(&mut stream)
+			.await
 			.ok()?;
 
 		Some(WebSocket::from_raw_socket(
@@ -64,7 +65,7 @@ impl Request {
 /// If upgrading succeeds, the WebSocket is passed to `self.ws_handler`.
 /// Does nothing if the request is not a WebSocket handshake request.
 #[cfg(feature = "websocket")]
-pub fn maybe_websocket<S: io::Write>(
+pub async fn maybe_websocket<S: AsyncWrite + Unpin>(
 	handler: WsHandler<S>,
 	stream: &mut S,
 	req: &mut Request,
@@ -76,5 +77,5 @@ pub fn maybe_websocket<S: io::Write>(
 
 	// Calls `handler` if `request.upgrade(..)` returns `Some(..)`, in which case we know it's
 	// a WebSocket handshake request and that we can upgrade it.
-	req.upgrade(stream).map(handler).is_some()
+	req.upgrade(stream).await.map(handler).is_some()
 }
