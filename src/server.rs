@@ -9,8 +9,6 @@ pub const DEFAULT_BUFFER_SIZE: usize = 1024 * 8;
 
 use std::io;
 
-use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
-
 use smol::net::{AsyncToSocketAddrs, SocketAddr, TcpListener, TcpStream};
 
 #[cfg(feature = "tls")]
@@ -25,13 +23,19 @@ pub type Stream = TcpStream;
 pub type Stream = TlsStream<TcpStream>;
 
 #[cfg(feature = "websocket")]
-use crate::ws::{maybe_websocket, WebSocket};
-
-/// A WebSocket handler function type.
+use crate::ws::maybe_websocket;
 #[cfg(feature = "websocket")]
-pub type WsHandler<S> = Option<(&'static str, fn(WebSocket<&mut S>))>;
+use async_tungstenite::WebSocketStream;
+
+/// A WebSocket handler type.
+#[cfg(feature = "websocket")]
+pub type WsHandler<S> = Option<(&'static str, WsHandlerFn<S>)>;
+/// The inner function of a WebSocket handler.
+#[cfg(feature = "websocket")]
+type WsHandlerFn<S> = Arc<dyn Fn(WebSocketStream<S>) + Send + Sync + 'static>;
 
 use std::future::Future;
+use std::sync::Arc;
 
 /// Single threaded listener made for simpler servers.
 pub struct Server {
@@ -125,8 +129,16 @@ impl Server {
 	///    .run(|_| response!(ok)); // Handle HTTP requests
 	///
 	#[cfg(feature = "websocket")]
-	pub fn on_websocket(mut self, path: &'static str, handler: fn(WebSocket<&mut Stream>)) -> Self {
-		self.ws_handler = Some((path, handler));
+	pub fn on_websocket<F, R>(mut self, path: &'static str, handler: F) -> Self
+	where
+		F: Fn(WebSocketStream<Stream>) -> R + Send + 'static + Clone + Sync,
+		R: Future<Output = ()> + Send + 'static,
+	{
+		let real_handler: WsHandlerFn<Stream> = Arc::new(move |s: WebSocketStream<Stream>| {
+			smol::spawn(handler(s)).detach();
+		});
+
+		self.ws_handler = Some((path, real_handler));
 		self
 	}
 
@@ -140,7 +152,7 @@ impl Server {
 		let buffer_size = self.buffer_size;
 		let should_insert_defaults = self.insert_default_headers;
 		#[cfg(feature = "websocket")]
-		let ws_handler = self.ws_handler;
+		let ws_handler = self.ws_handler.clone();
 		loop {
 			let (stream, addr) = self.next_stream().await;
 			smol::spawn(Self::keep_handling(
@@ -150,7 +162,7 @@ impl Server {
 				addr,
 				handler.clone(),
 				#[cfg(feature = "websocket")]
-				ws_handler,
+				ws_handler.clone(),
 			))
 			.detach();
 		}
@@ -198,7 +210,7 @@ impl Server {
 			};
 
 			#[cfg(feature = "websocket")]
-			if maybe_websocket(ws_handler, &mut stream, &mut req).await {
+			if maybe_websocket(ws_handler.clone(), stream.clone(), &mut req).await {
 				break;
 			}
 

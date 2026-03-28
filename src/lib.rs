@@ -24,7 +24,7 @@ pub(crate) use util::HttpVersion;
 
 #[cfg(feature = "websocket")]
 /// A WebSocket connection.
-pub type WebSocket<'a> = tungstenite::WebSocket<&'a mut Stream>;
+pub type WebSocket = async_tungstenite::WebSocketStream<Stream>;
 
 #[cfg(feature = "tls")]
 // Re-export needed structs for `Server::new(...)` with TLS.

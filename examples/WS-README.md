@@ -1,12 +1,11 @@
-# examples/websocket
+# examples/ws
 
 This example implements `tungstenite` to a `snowboard` server, creating a websocket echo server.
 
 ## Usage
 
 ```sh
-$ cd examples/websocket
-$ cargo run
+$ cargo run --example ws --features websocket
 ```
 
 ## Test

@@ -8,9 +8,11 @@ use crate::{headers, Request};
 use base64::engine::general_purpose::STANDARD as BASE64ENGINE;
 use base64::Engine;
 
+use async_tungstenite::tungstenite::protocol;
+use async_tungstenite::WebSocketStream;
+use smol::io::{AsyncRead, AsyncWrite};
+
 use sha1::{Digest, Sha1};
-use smol::io::AsyncWrite;
-pub(crate) use tungstenite::WebSocket;
 
 /// Builds the handshake headers for a WebSocket connection.
 fn build_handshake(sec_key: String) -> HashMap<&'static str, String> {
@@ -33,14 +35,17 @@ impl Request {
 	pub fn is_websocket(&self) -> bool {
 		self.headers
 			.get("Upgrade")
-			.map(|value| value == "websocket")
+			.map(|value| value.eq_ignore_ascii_case("websocket"))
 			.unwrap_or(false)
 			&& self.headers.contains_key("Sec-WebSocket-Key")
 	}
 
 	/// Upgrades a request to a WebSocket connection.
 	/// Returns `None` if the request is not a WebSocket handshake request.
-	pub async fn upgrade<T: AsyncWrite + Unpin>(&mut self, mut stream: T) -> Option<WebSocket<T>> {
+	pub async fn upgrade<T: AsyncWrite + AsyncRead + Unpin>(
+		&mut self,
+		mut stream: T,
+	) -> Option<WebSocketStream<T>> {
 		if !self.is_websocket() {
 			return None;
 		}
@@ -53,11 +58,7 @@ impl Request {
 			.await
 			.ok()?;
 
-		Some(WebSocket::from_raw_socket(
-			stream,
-			tungstenite::protocol::Role::Server,
-			None,
-		))
+		Some(WebSocketStream::from_raw_socket(stream, protocol::Role::Server, None).await)
 	}
 }
 
@@ -65,9 +66,9 @@ impl Request {
 /// If upgrading succeeds, the WebSocket is passed to `self.ws_handler`.
 /// Does nothing if the request is not a WebSocket handshake request.
 #[cfg(feature = "websocket")]
-pub async fn maybe_websocket<S: AsyncWrite + Unpin>(
+pub async fn maybe_websocket<S: AsyncWrite + Unpin + AsyncRead + Send + 'static>(
 	handler: WsHandler<S>,
-	stream: &mut S,
+	stream: S,
 	req: &mut Request,
 ) -> bool {
 	let handler = match handler {
@@ -75,7 +76,12 @@ pub async fn maybe_websocket<S: AsyncWrite + Unpin>(
 		_ => return false,
 	};
 
-	// Calls `handler` if `request.upgrade(..)` returns `Some(..)`, in which case we know it's
-	// a WebSocket handshake request and that we can upgrade it.
-	req.upgrade(stream).await.map(handler).is_some()
+	if let Some(s) = req.upgrade(stream).await {
+		println!("reaches");
+		let h = handler.clone();
+		h(s);
+		true
+	} else {
+		false
+	}
 }
