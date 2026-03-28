@@ -3,7 +3,7 @@
 		"rust-analyzer": {
 			"initialization_options": {
 				"cargo": {
-					"features": ["websocket", "json", "tls"],
+					"features": ["websocket", "json"],
 				},
 			},
 		},

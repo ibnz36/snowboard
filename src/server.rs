@@ -257,7 +257,13 @@ impl Server {
 	///
 	/// # Example
 	/// ```rust
-	/// TODO
+	/// use snowboard::Server;
+	///
+	/// let server = Server::new("localhost:3000").await?;
+	/// match server.try_accept().await {
+	///     Ok((_, ip)) => println!("new connection to {:#?}", ip),
+	///     Err(_) => println!("a stream has failed to connect !"),
+	/// }
 	/// ```
 	#[inline]
 	pub async fn try_accept(&self) -> io::Result<(Stream, SocketAddr)> {
