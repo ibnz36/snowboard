@@ -55,7 +55,7 @@ impl Response {
 		}
 	}
 
-	/// Writes the response, consuming its body.
+	/// Writes the response, to a stream.
 	pub async fn send_to<T: AsyncWrite + Unpin>(
 		&mut self,
 		stream: &mut T,
@@ -164,6 +164,7 @@ impl fmt::Display for Response {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let mut text = self.prepare_response();
 		text += String::from_utf8_lossy(&self.bytes).as_ref();
+		text += "\r\n";
 		write!(f, "{}", text)
 	}
 }
@@ -173,7 +174,7 @@ impl Default for Response {
 		Self {
 			version: DEFAULT_HTTP_VERSION,
 			status: 200,
-			status_text: "Ok",
+			status_text: "OK",
 			bytes: vec![],
 			headers: None,
 		}

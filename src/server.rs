@@ -187,7 +187,7 @@ impl Server {
 		T: ResponseLike,
 	{
 		loop {
-			#[cfg_attr(not(feature = "websocket"), allow(unused_mut))]
+			#[cfg_attr(not(feature = "websocket"), expect(unused_mut))]
 			let mut req = match Request::read_from(&mut stream, addr, buffer_size).await {
 				Ok(req) => req,
 				Err(e) if e.kind() == io::ErrorKind::InvalidInput => {

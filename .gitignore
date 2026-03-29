@@ -1,6 +1,4 @@
 **/target
 .vscode/*
 
-**/.zed
-.zed/*
 .zed
