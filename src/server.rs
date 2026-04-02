@@ -336,15 +336,13 @@ impl Server {
 		let path = String::from_utf8_lossy(&path).to_string();
 
 		let mut res = crate::response!(
-			permanent_redirect,
+			moved_permanently,
 			[],
 			crate::headers! {
 				"Location" => format!("https://{}{}", self.pretty_addr().unwrap_or_default(), path),
 				"Connection" => "keep-alive",
 			}
 		);
-
-		println!("{}", res);
 
 		res.send_to(&mut stream).await?;
 

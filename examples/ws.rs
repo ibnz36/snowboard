@@ -1,6 +1,5 @@
-use smol::stream::StreamExt;
 use snowboard::Server;
-use snowboard::WebSocket;
+use snowboard::{StreamExt, WebSocket};
 
 async fn handle_ws(ws: WebSocket) {
 	let (mut sender, mut reciever) = ws.split();

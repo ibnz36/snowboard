@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-The project contributors will do their best to mantain the most used versions as secure as possible.
+The project contributors will do their best to mantain the latest versions as secure as possible.
 
 ## Reporting a Vulnerability
 

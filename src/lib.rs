@@ -31,6 +31,8 @@ pub type WebSocket = async_tungstenite::WebSocketStream<Stream>;
 pub use async_native_tls::TlsAcceptor;
 
 pub use smol;
+pub use smol::stream::StreamExt;
+
 pub use smol_potat;
 pub use smol_potat::main;
 
