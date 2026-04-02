@@ -1,0 +1,71 @@
+#!/bin/bash
+
+ulimit -n unlimited
+sudo cpupower frequency-set -g performance
+
+sudo -v
+
+LOG_FILE="results-$(date +%Y-%m-%d-%H%M).txt"
+FLAME_OUT="flamegraph-$(date +%Y-%m-%d-%H%M).svg"
+
+echo "Killing anything in :8080"
+fuser -k -n tcp 8080
+
+echo "Logging to $LOG_FILE"
+> "$LOG_FILE"
+
+bench_unlogged () {
+	echo "- wrk -t12 -c$1 -d30s http://localhost:8080 -"
+	wrk -t12 -c$1 -d30s http://localhost:8080
+	echo "---------------------------------------------"
+}
+
+bench () {
+	bench_unlogged "$1" >> "$LOG_FILE"
+}
+
+bench_with_flamegraph () {
+	RUSTFLAGS="-C force-frame-pointers=yes" cargo build --release
+
+    echo "Capturing flamegraph for $1 connections..."
+
+    PERF_ARGS="record -F 200 --call-graph dwarf,8192 -g" flamegraph -v --no-inline -F 200 -o "$FLAME_OUT" -- ./target/release/perf-test &
+    SERVER_PID=$!
+
+    # Wait a moment for server to spin up
+    sleep 5
+
+	echo "Running the bench"
+    # Run the load
+    bench "$1"
+
+    # Kill the server gracefully so flamegraph can finalize the SVG
+    sudo kill -INT $(pgrep -n perf-test)
+
+    echo "Waiting for flamegraph to finish..."
+    wait "$SERVER_PID"
+
+    echo "Flamegraph saved to $FLAME_OUT"
+}
+
+echo "Building..."
+
+cargo run --release &
+APP_PID=$!
+sleep 3
+
+echo "Running standard benchmarks..."
+
+echo "---------------------------------------------" >> "$LOG_FILE"
+bench 100
+bench 300
+
+# Kill standard process to prepare for flamegraph
+kill $APP_PID
+wait $APP_PID 2>/dev/null
+
+bench_with_flamegraph 900
+
+cp "$LOG_FILE" "results-latest.txt"
+
+echo "Done"

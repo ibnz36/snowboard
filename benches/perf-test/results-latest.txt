@@ -1,0 +1,31 @@
+---------------------------------------------
+- wrk -t12 -c100 -d30s http://localhost:8080 -
+Running 30s test @ http://localhost:8080
+  12 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency   406.94us  253.25us   7.30ms   80.05%
+    Req/Sec    19.69k     1.40k   74.67k    89.84%
+  7056323 requests in 30.10s, 430.68MB read
+Requests/sec: 234430.89
+Transfer/sec:     14.31MB
+---------------------------------------------
+- wrk -t12 -c300 -d30s http://localhost:8080 -
+Running 30s test @ http://localhost:8080
+  12 threads and 300 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.10ms  762.90us  17.04ms   77.36%
+    Req/Sec    22.89k     1.83k   28.91k    72.58%
+  8204341 requests in 30.04s, 500.75MB read
+Requests/sec: 273089.41
+Transfer/sec:     16.67MB
+---------------------------------------------
+- wrk -t12 -c900 -d30s http://localhost:8080 -
+Running 30s test @ http://localhost:8080
+  12 threads and 900 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     3.30ms    2.51ms 209.97ms   77.57%
+    Req/Sec    22.15k     2.38k   37.00k    74.44%
+  7946060 requests in 30.08s, 484.99MB read
+Requests/sec: 264134.90
+Transfer/sec:     16.12MB
+---------------------------------------------

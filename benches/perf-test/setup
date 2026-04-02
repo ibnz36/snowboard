@@ -1,0 +1,6 @@
+#!/bin/bash
+
+cpupower frequency-set -g performance
+sysctl -w net.core.somaxconn=65535
+sysctl -w net.ipv4.tcp_tw_reuse=1
+ulimit -n 1000000
