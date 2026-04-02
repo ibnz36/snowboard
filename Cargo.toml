@@ -38,10 +38,9 @@ criterion = "0.5.1"
 doctest = false
 required-features = []
 
-# TODO: return bench and test.
-#[[bench]]
-#name = "main"
-#harness = false
+[[bench]]
+name = "main"
+harness = false
 
 [[test]]
 name = "main"

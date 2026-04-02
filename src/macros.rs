@@ -36,15 +36,15 @@ macro_rules! response {
 	};
 
 	($type:ident) => {
-		$crate::Response::$type(vec![], None, $crate::_DEFAULT_HTTP_VERSION)
+		$crate::Response::$type(vec![], $crate::Headers::default(), $crate::_DEFAULT_HTTP_VERSION)
 	};
 
 	($type:ident,$body:expr) => {
-		$crate::Response::$type($body.into(), None, $crate::_DEFAULT_HTTP_VERSION)
+		$crate::Response::$type($body.into(), $crate::Headers::default(), $crate::_DEFAULT_HTTP_VERSION)
 	};
 
 	($type:ident,$body:expr,$headers:expr) => {
-		$crate::Response::$type($body.into(), Some($headers), $crate::_DEFAULT_HTTP_VERSION)
+		$crate::Response::$type($body.into(), $headers, $crate::_DEFAULT_HTTP_VERSION)
 	};
 }
 
