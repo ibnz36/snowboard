@@ -30,6 +30,10 @@ pub type WebSocket = async_tungstenite::WebSocketStream<Stream>;
 // Re-export needed structs for `Server::new(...)` with TLS.
 pub use async_native_tls::TlsAcceptor;
 
+pub use smol;
+pub use smol_potat;
+pub use smol_potat::main;
+
 /// A type alias for `std::io::Result<()>`
 /// used in `Server::new()?.run(...)`.
 ///

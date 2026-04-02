@@ -3,7 +3,7 @@ use snowboard::TlsAcceptor;
 
 use snowboard::Server;
 
-use smol::fs::File;
+use snowboard::smol::fs::File;
 
 #[smol_potat::main]
 async fn main() -> Result<()> {

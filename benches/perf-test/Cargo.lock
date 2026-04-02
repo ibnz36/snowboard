@@ -682,10 +682,11 @@ dependencies = [
 
 [[package]]
 name = "snowboard"
-version = "1.0.3"
+version = "0.8.0"
 dependencies = [
  "chrono",
  "smol",
+ "smol-potat",
 ]
 
 [[package]]
