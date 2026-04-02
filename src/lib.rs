@@ -1,7 +1,8 @@
 #![forbid(unsafe_code, clippy::panic)]
-#![deny(missing_docs, clippy::missing_docs_in_private_items, clippy::perf)]
 #![warn(clippy::cognitive_complexity, rust_2018_idioms)]
 #![doc = include_str!("../README.md")]
+#![deprecated = "This crate has moved back to 0.x versioning. \
+            Please use the latest 0.x version on crates.io."]
 
 mod macros;
 mod request;
