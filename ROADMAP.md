@@ -2,7 +2,7 @@
 
 ## Roadmap
 
-### 0. (always) Performance improvements (currently issue #10)
+### 0. (always) Performance improvements
 
 It's always possible to make it faster. And we should.
 

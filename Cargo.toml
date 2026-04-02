@@ -1,38 +1,37 @@
 [package]
 name = "snowboard"
-version = "1.0.4"
+version = "0.8.0"
 edition = "2021"
 license = "MIT"
-repository = "https://github.com/Brian3647/snowboard"
+repository = "https://github.com/ibnz36/snowboard"
 readme = "README.md"
 description = "DEPRECATED: moved back to 0.x versioning. See crates.io for latest 0.x."
 include = ["src/**/*.rs", "Cargo.toml", "LICENSE"]
-rust-version = "1.60.0"
-homepage = "https://github.com/Brian3647/snowboard"
+homepage = "https://github.com/ibnz36/snowboard"
 documentation = "https://docs.rs/snowboard"
 keywords = ["http", "server", "web"]
 categories = ["network-programming", "web-programming::http-server", "parsing", "web-programming"]
 
 [dependencies]
-async-std = { version = "1.12.0", optional = true }
-native-tls = { version = "0.2.11", optional = true }
-serde_json = { version = "1.0.108", optional = true }
-serde = { version = "1.0.192", optional = true, features = ["derive"] }
-tungstenite = { version = "0.21.0", optional = true }
-base64 = { version = "0.21.5", optional =  true }
-sha1 =  { version = "0.10.6", optional = true }
-chrono = { version = "0.4.31", default-features = false, features = ["clock"] }
-
-[dev-dependencies]
-criterion = "0.5.1"
+smol = "2.0.2"
+serde_json = { version = "1.0.149", optional = true }
+serde = { version = "1.0.228", optional = true, features = ["derive"] }
+base64 = { version = "0.22.1", optional =  true }
+sha1 =  { version = "0.11.0", optional = true }
+chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
+async-native-tls = { version = "0.6.0", optional = true }
+async-tungstenite = { version = "0.34.0", optional = true }
+smol-potat = { version = "1.1.2", features = ["auto"] }
 
 [features]
 default = []
-full = ["async", "tls", "json", "websocket"]
-async = ["async-std"]
-tls = ["native-tls"]
+all = ["tls", "json", "websocket"]
+tls = ["async-native-tls"]
 json = ["serde_json", "serde"]
-websocket = ["tungstenite", "base64", "sha1"]
+websocket = ["async-tungstenite", "base64", "sha1"]
+
+[dev-dependencies]
+criterion = "0.5.1"
 
 [lib]
 doctest = false

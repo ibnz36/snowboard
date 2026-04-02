@@ -20,4 +20,4 @@ jobs:
             - name: Clippy
               run: cargo clippy --verbose -- -D warnings
             - name: Run tests
-              run: cargo test --verbose
+              run: cargo test --verbose --features json websocket

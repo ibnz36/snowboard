@@ -1,0 +1,7 @@
+*.log
+flamegraph.*
+perf.*
+results-*
+!results-latest*
+flamegraph-*
+!flamegraph-latest*

@@ -1,7 +1,7 @@
 //! A module that provides code to handle https/http requests.
 
-use std::net::SocketAddr;
-use std::{borrow::Cow, collections::HashMap};
+use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use std::{borrow::Cow, collections::HashMap, io, net::SocketAddr};
 
 use crate::{Method, Url};
 
@@ -21,8 +21,8 @@ pub struct Request {
 	/// Method used in the request. Might be Method::Unknown if parsing fails.
 	pub method: Method,
 	/// Body of the request, in bytes.
-	/// Use [`Request::text`], [`Request::json`], or [`Request::force_json`]
-	/// to get a parsed version of the body.
+	/// Use [`Request::text`], [`Request::json`] (json feature), or [`Request::expect_json`]
+	/// (json feature) to get a parsed version of the body.
 	pub body: Vec<u8>,
 	/// Parsed headers.
 	pub headers: HashMap<String, String>,
@@ -128,7 +128,7 @@ impl Request {
 	/// Get the body as a JSON value.
 	///
 	/// This is only intended for custom invalid JSON handling.
-	/// Use [`Request::force_json`] to be able to use the `?` operator.
+	/// Use [`Request::expect_json`] to be able to use the `?` operator.
 	#[cfg(feature = "json")]
 	pub fn json<T>(&self) -> serde_json::Result<T>
 	where
@@ -148,21 +148,21 @@ impl Request {
 	///
 	/// #[derive(Deserialize)]
 	/// struct MyBody {
-	/// 	foo: String,
+	///    foo: String,
 	/// }
 	///
 	/// fn main() -> snowboard::Result {
-	/// 	Server::new("localhost:3000")?.run(|r| {
-	/// 		let body: MyBody = r.force_json()?;
+	///    Server::new("localhost:3000")?.run(|r| {
+	///        let body: MyBody = r.expect_json()?;
 	///
-	/// 		Ok(serde_json::json!({
-	/// 			"foo": body.foo,
-	/// 		}))
-	/// 	})
+	///        Ok(serde_json::json!({
+	///            "foo": body.foo,
+	///        }))
+	///    })
 	/// }
 	/// ```
 	#[cfg(feature = "json")]
-	pub fn force_json<T>(&self) -> Result<T, crate::Response>
+	pub fn expect_json<T>(&self) -> Result<T, crate::Response>
 	where
 		T: for<'a> serde::de::Deserialize<'a>,
 	{
@@ -178,5 +178,51 @@ impl Request {
 	/// Get the IP address of the client, formatted.
 	pub fn pretty_ip(&self) -> String {
 		crate::util::format_addr(self.ip)
+	}
+
+	/// Check if the request should be kept alive.
+	pub fn keep_alive(&self) -> bool {
+		self.headers
+			.get("connection")
+			.map(|s| s.to_ascii_lowercase())
+			!= Some("false".to_string())
+			|| self
+				.headers
+				.get("connection")
+				.map(|s| s.to_ascii_lowercase())
+				== Some("keep-alive".to_string())
+	}
+
+	/// Tries to read a request from a stream.
+	pub async fn read_from<T: AsyncRead + Unpin + AsyncWrite>(
+		mut stream: &mut T,
+		addr: SocketAddr,
+		buffer_size: usize,
+	) -> io::Result<Request> {
+		let mut buffer: Vec<u8> = Vec::with_capacity(buffer_size);
+		let mut chunk = vec![0u8; 1024];
+
+		// Read until we have everything
+		loop {
+			let n = stream.read(&mut chunk).await?;
+			if n == 0 {
+				crate::response!(bad_request).send_to(&mut stream).await?;
+				return Err(io::Error::from(io::ErrorKind::InvalidInput));
+			}
+
+			buffer.extend_from_slice(&chunk[..n]);
+			if buffer.windows(4).any(|w| w == b"\r\n\r\n") {
+				break;
+			}
+
+			if buffer.len() > buffer_size {
+				return Err(io::Error::from(io::ErrorKind::InvalidInput));
+			}
+		}
+
+		match Request::new(&buffer, addr) {
+			Some(req) => Ok(req),
+			None => Err(io::Error::from(io::ErrorKind::InvalidInput)),
+		}
 	}
 }

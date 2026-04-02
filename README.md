@@ -1,19 +1,15 @@
 <div align="center">
 
-# The v1.x.x branch was pushed way too early.
-# Because of this, as of april 2026, the project has moved back to 0.x versioning.
-# Please check crates.io for the latest 0.x ver.
-
 # **Snowboard 🏂**
 
-![License](https://img.shields.io/github/license/Brian3647/snowboard)
-![Build status](https://img.shields.io/github/actions/workflow/status/Brian3647/snowboard/rust.yml)
-[![DeepSource](https://app.deepsource.com/gh/Brian3647/snowboard.svg/?label=active+issues&show_trend=false)](https://app.deepsource.com/gh/Brian3647/snowboard/)
-[![dependency status](https://deps.rs/repo/github/Brian3647/snowboard/status.svg)](https://deps.rs/repo/github/Brian3647/snowboard)
+![License](https://img.shields.io/github/license/ibnz36/snowboard)
+![Build status](https://img.shields.io/github/actions/workflow/status/ibnz36/snowboard/rust.yml)
+[![DeepSource](https://app.deepsource.com/gh/ibnz36/snowboard.svg/?label=active+issues&show_trend=false)](https://app.deepsource.com/gh/ibnz36/snowboard/)
+[![dependency status](https://deps.rs/repo/github/ibnz36/snowboard/status.svg)](https://deps.rs/repo/github/ibnz36/snowboard)
 
 An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 
-[Request a feature/Report a bug](https://github.com/Brian3647/snowboard/issues)
+[Request a feature/Report a bug](https://github.com/ibnz36/snowboard/issues)
 
 </div>
 
@@ -29,7 +25,6 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
     -   [**Integration**](#integration)
         -   [**JSON**](#json)
         -   [**ResponseLike**](#responselike)
-    -   [**MSRV (Minimum Supported Rust Version)**](#msrv-minimum-supported-rust-version)
     -   [**Contributing**](#contributing)
     -   [**License**](#license)
 
@@ -47,83 +42,56 @@ snowboard = "*"
 Then, create a new Rust file with the following code:
 
 ```rust
-use snowboard::{headers, response, Method, Result, Server};
+use snowboard::{headers, response, Method, Server};
 
-fn main() -> Result {
+#[snowboard::main]
+async fn main() -> snowboard::Result {
     let data = "Hello, world!";
 
-    let server = Server::new("localhost:8080")?;
+    let server = Server::new("localhost:8080").await?;
 
     println!("Listening on {}", server.pretty_addr()?);
 
-    server.run(move |mut req| {
-        if req.method == Method::DELETE {
-            return response!(method_not_allowed, "Caught you trying to delete!");
-        }
+    server
+        .run(async move |mut req| {
+            if req.method == Method::DELETE {
+                return response!(method_not_allowed, "Caught you trying to delete!");
+            }
 
-        req.set_header("X-Server", "Snowboard");
+            println!("{req:#?}");
 
-        println!("{req:#?}");
-
-        response!(ok, data, headers! { "X-Hello" => "World!" })
-    })
+            response!(ok, data, headers! { "X-Hello" => "World!" })
+        })
+        .await
 }
 ```
 
 And that's it! You got yourself a working server on :8080. Examples can be found in the `examples` folder.
 
-## **Async routes**
-
-You can use the `async` feature and `Server::run_async` to run async routes:
-
-```toml
-# Cargo.toml
-
-[dependencies]
-snowboard = { version = "*", features = ["async"] }
-```
-
-```rust
-// src/main.rs
-use snowboard::{Request, ResponseLike, Server, Result};
-use async_std::task;
-use std::duration::Duration;
-
-async fn index(_: Request) -> impl ResponseLike {
-    task::sleep(Duration::from_secs(1)).await;
-
-    "Async works"
-}
-
-fn main() -> Result {
-    Server::new("localhost:8080")?.run_async(index)
-}
-```
-
 ## **TLS**
 
-Use the `tls` feature (which will also install `native-tls`) to use TLS:
+Use the `tls` feature to create secure-connection servers:
 
 ```rust
 use anyhow::Result;
-use snowboard::{
-    Identity, TlsAcceptor,
-    response, Server,
-};
+use snowboard::TlsAcceptor;
 
-use std::fs;
+use snowboard::Server;
 
-fn main() -> Result<()> {
-    let der = fs::read("identity.pfx")?;
-    let password = ..;
-    let tls_acceptor = TlsAcceptor::new(Identity::from_pkcs12(&der, password)?)?;
+use snowboard::smol::fs::File;
 
-    Server::new_with_tls("localhost:3000", tls_acceptor)?
-        .run(|request| format!("{request:#?}"))
+#[snowboard::main]
+async fn main() -> Result<()> {
+    let password = "1234";
+    let idx = File::open("identity.pfx").await?;
+    let tls_acceptor = TlsAcceptor::new(idx, password).await?;
+
+    Server::new("localhost:3000", tls_acceptor)
+        .await?
+        .run(async move |request| format!("{request:#?}"))
+        .await
 }
 ```
-
-You can confirm it works by running `curl -k https://localhost:3000` _(the -k is needed to allow self-signed certificates)_
 
 More info can be found in `examples/tls`.
 
@@ -132,21 +100,23 @@ More info can be found in `examples/tls`.
 WebSockets are easy to implement with the `websocket` feature. Example (echo server):
 
 ```rust
-use std::net::TcpStream;
-
 use snowboard::Server;
-use snowboard::WebSocket;
+use snowboard::{StreamExt, WebSocket};
 
-fn handle_ws(mut ws: WebSocket) {
-    while let Ok(msg) = ws.read() {
-        ws.send(msg).unwrap();
+async fn handle_ws(ws: WebSocket) {
+    let (mut sender, mut reciever) = ws.split();
+    while let Some(Ok(msg)) = reciever.next().await {
+        let _ = sender.send(msg).await;
     }
 }
 
-fn main() -> snowboard::Result {
-    Server::new("localhost:3000")?
+#[snowboard::main]
+async fn main() -> snowboard::Result {
+    Server::new("localhost:8080")
+        .await?
         .on_websocket("/ws", handle_ws)
-        .run(|_| "Try `/ws`!")
+        .run(async |_| "Try `/ws`!")
+        .await
 }
 ```
 
@@ -157,18 +127,19 @@ Routing can be handled easily using the `Url` struct:
 ```rust
 use snowboard::{response, Request, ResponseLike, Result, Server};
 
-fn router(req: Request) -> impl ResponseLike {
+async fn router(req: Request) -> impl ResponseLike {
     // /{x}
     match req.parse_url().at(0) {
         Some("ping") => response!(ok, "Pong!"),
-        Some("api") => response!(not_implemented, "👀"),
+        Some("api") => response!(continue),
         None => response!(ok, "Hello, world!"),
         _ => response!(not_found, "Route not found"),
     }
 }
 
-fn main() -> Result {
-    Server::new("localhost:8080")?.run(router);
+#[snowboard::main]
+async fn main() -> Result {
+    Server::new("localhost:8080").await?.run(router).await
 }
 ```
 
@@ -187,38 +158,26 @@ struct Example {
     number: isize,
 }
 
-fn main() -> snowboard::Result {
-    Server::new("localhost:8080")?.run(|req| -> Result<Value, Response> {
-        let example: Example = req.force_json()?;
+#[snowboard::main]
+async fn main() -> snowboard::Result {
+    Server::new("localhost:8080")
+        .await?
+        .run(async |req| -> Result<Value, Response> {
+            let parsed: Example = req.expect_json()?;
 
-        Ok(serde_json::json!({
-            "number_plus_one": example.number + 1
-        }))
-    });
+            Ok(serde_json::json!({
+                "number_plus_one": parsed.number + 1
+            }))
+        })
+        .await
 }
 ```
 
-```rust
-use snowboard::Server;
-
-fn main() -> snowboard::Result {
-    Server::new("localhost:3000")?.run(|r| {
-        serde_json::json!({
-            "ip": r.ip(),
-            "url": r.parse_url(),
-            "method": r.method,
-            "body": r.text(),
-            "headers": r.headers,
-		})
-	})
-}
-```
-
-`force_json` returns a result of either the parsed JSON or a bad request response. If you want to handle the error yourself, use `json` instead.
+`expect_json` returns a result of either the parsed JSON or a bad request response. If you want to handle the error yourself, use the `json` function instead.
 
 ### **ResponseLike**
 
-Snowboard's `ResponseLike` is designed to work with pretty much anything, but it wont by default with certain cases like `maud`'s `html!` macro. If you happen to use a lot a crate that doesn't work with Snowboard, please open an issue, pr or implement `ResponseLike` for it:
+Snowboard's `ResponseLike` is designed to work with pretty much anything, but it wont by default with certain cases like `maud`'s `html!` macro. If you happen to use a lot a crate that doesn't work with Snowboard, you can implement `ResponseLike` for it:
 
 ```rust
 use snowboard::{Response, ResponseLike, Server};
@@ -229,19 +188,18 @@ struct Example {
 
 impl ResponseLike for Example {
     fn to_response(self) -> Response {
-        snowboard::response!(ok, self.num.to_string())
+        snowboard::response!(ok, format!("My favorite number is {}!", self.num))
     }
 }
 
-fn main() -> snowboard::Result {
-    Server::new("localhost:8080")?
-        .run(|_| Example { num: 5 });
+#[snowboard::main]
+async fn main() -> snowboard::Result {
+    Server::new("localhost:8080")
+        .await?
+        .run(async |_| Example { num: 5 })
+        .await;
 }
 ```
-
-## **MSRV (Minimum Supported Rust Version)**
-
-The MSRV is 1.60.0, but it might change (lower or higher) depending on which features are enabled.
 
 ## **Contributing**
 

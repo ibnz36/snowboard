@@ -7,7 +7,7 @@ Pull requests and issues can be opened freely if needed using their respective t
 ## **Recommended:**
 
 -   Small commits (avoid large commits that change too much things at once)
--   Use [gitmoji](https://gitmoji.dev/) or [cm](https://github.com/Brian3647/cm)
+-   Use [gitmoji](https://gitmoji.dev/) or [cm](https://github.com/ibnz36/cm)
 -   Not to change the version number yourself but rather specify the version number in the PR description and let the maintainer change it
 
 ## **Must:**
