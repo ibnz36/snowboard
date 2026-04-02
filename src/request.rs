@@ -199,15 +199,28 @@ impl Request {
 		addr: SocketAddr,
 		buffer_size: usize,
 	) -> io::Result<Request> {
-		let mut buffer: Vec<u8> = vec![0; buffer_size];
-		let payload_size = stream.read(&mut buffer).await?;
+		let mut buffer: Vec<u8> = Vec::with_capacity(buffer_size);
+		let mut chunk = vec![0u8; 1024];
 
-		if payload_size == 0 {
-			crate::response!(bad_request).send_to(&mut stream).await?;
-			return Err(io::Error::new(io::ErrorKind::InvalidInput, "Empty request"));
+		// Read until we have everything
+		loop {
+			let n = stream.read(&mut chunk).await?;
+			if n == 0 {
+				crate::response!(bad_request).send_to(&mut stream).await?;
+				return Err(io::Error::from(io::ErrorKind::InvalidInput));
+			}
+
+			buffer.extend_from_slice(&chunk[..n]);
+			if buffer.windows(4).any(|w| w == b"\r\n\r\n") {
+				break;
+			}
+
+			if buffer.len() > buffer_size {
+				return Err(io::Error::from(io::ErrorKind::InvalidInput));
+			}
 		}
 
-		match Request::new(&buffer[..payload_size], addr) {
+		match Request::new(&buffer, addr) {
 			Some(req) => Ok(req),
 			None => Err(io::Error::from(io::ErrorKind::InvalidInput)),
 		}
