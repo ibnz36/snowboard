@@ -1,8 +1,5 @@
 #!/bin/bash
 
-ulimit -n unlimited
-sudo cpupower frequency-set -g performance
-
 sudo -v
 
 LOG_FILE="results-$(date +%Y-%m-%d-%H%M).txt"
