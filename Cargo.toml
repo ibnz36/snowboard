@@ -1,11 +1,11 @@
 [package]
 name = "snowboard"
-version = "1.0.3"
+version = "1.0.4"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/Brian3647/snowboard"
 readme = "README.md"
-description = "Extremely simple rust servers 🏂"
+description = "DEPRECATED: moved back to 0.x versioning. See crates.io for latest 0.x."
 include = ["src/**/*.rs", "Cargo.toml", "LICENSE"]
 rust-version = "1.60.0"
 homepage = "https://github.com/Brian3647/snowboard"

@@ -1,6 +1,8 @@
 <div align="center">
 
-# This project is no longer mantained. Please open an issue if you desire to continue it, ownership will be passed.
+# The v1.x.x branch was pushed way too early.
+# Because of this, as of april 2026, the project has moved back to 0.x versioning.
+# Please check crates.io for the latest 0.x ver.
 
 # **Snowboard 🏂**
 
