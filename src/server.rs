@@ -8,8 +8,9 @@ use crate::ResponseLike;
 pub const DEFAULT_BUFFER_SIZE: usize = 1024 * 8;
 
 use std::io;
+use std::net::ToSocketAddrs;
 
-use smol::net::{AsyncToSocketAddrs, SocketAddr, TcpListener, TcpStream};
+use smol::net::{SocketAddr, TcpListener, TcpStream};
 
 #[cfg(feature = "tls")]
 use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
@@ -44,8 +45,8 @@ use std::sync::Arc;
 
 /// Single threaded listener made for simpler servers.
 pub struct Server {
-	/// It stores the TcpListener struct.
-	acceptor: TcpListener,
+	/// The server's address
+	addr: SocketAddr,
 	/// It stores the buffer size for the Tcp requests.
 	buffer_size: usize,
 	/// It stores the default HTTP/HTTPS request headers.
@@ -62,12 +63,15 @@ pub struct Server {
 impl Server {
 	/// Create a new server instance.
 	/// The server will listen on the given address.
-	pub async fn new(
-		addr: impl AsyncToSocketAddrs,
+	pub fn new(
+		addr: impl ToSocketAddrs,
 		#[cfg(feature = "tls")] tls_acceptor: TlsAcceptor,
 	) -> io::Result<Self> {
 		Ok(Self {
-			acceptor: TcpListener::bind(addr).await?,
+			addr: addr.to_socket_addrs()?.next().ok_or(io::Error::new(
+				io::ErrorKind::InvalidData,
+				"Failed to obtain a valid address",
+			))?,
 			buffer_size: DEFAULT_BUFFER_SIZE,
 			#[cfg(feature = "websocket")]
 			ws_handler: None,
@@ -86,14 +90,14 @@ impl Server {
 
 	/// Get the address the server is listening on.
 	#[inline]
-	pub fn addr(&self) -> io::Result<SocketAddr> {
-		self.acceptor.local_addr()
+	pub fn addr(&self) -> SocketAddr {
+		self.addr
 	}
 
 	/// Get the address the server is listening on as a string,
 	/// formatted to be able to use it as a link.
-	pub fn pretty_addr(&self) -> io::Result<String> {
-		self.addr().map(crate::util::format_addr)
+	pub fn pretty_addr(&self) -> String {
+		crate::util::format_addr(self.addr)
 	}
 
 	/// Set the buffer size used to read incoming requests.
@@ -148,7 +152,7 @@ impl Server {
 	}
 
 	/// Runs the server asynchronously.
-	pub async fn run<F, T, R>(mut self, handler: F) -> !
+	pub async fn run<F, T, R>(mut self, handler: F) -> io::Result<()>
 	where
 		F: Fn(Request) -> R + Send + 'static + Clone,
 		R: Future<Output = T> + Send + 'static,
@@ -158,8 +162,9 @@ impl Server {
 		let should_insert_defaults = self.insert_default_headers;
 		#[cfg(feature = "websocket")]
 		let ws_handler = self.ws_handler.clone();
+		let listener = TcpListener::bind(self.addr).await?;
 		loop {
-			let (stream, addr) = self.next_stream().await;
+			let (stream, addr) = self.next_stream(&listener).await;
 			smol::spawn(Self::keep_handling(
 				buffer_size,
 				should_insert_defaults,
@@ -261,15 +266,19 @@ impl Server {
 	/// }
 	/// ```
 	#[inline]
-	pub async fn try_accept(&self) -> io::Result<(Stream, SocketAddr)> {
-		self.try_accept_inner().await
+	pub async fn try_accept(&self, listener: &TcpListener) -> io::Result<(Stream, SocketAddr)> {
+		let (stream, addr) = listener.accept().await?;
+		self.try_accept_inner(stream, addr).await
 	}
 
 	#[cfg(not(feature = "tls"))]
 	#[inline]
 	/// A helper function which handles the requests done from the client.
-	async fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
-		let (stream, addr) = self.acceptor.accept().await?;
+	async fn try_accept_inner(
+		&self,
+		stream: TcpStream,
+		addr: SocketAddr,
+	) -> io::Result<(Stream, SocketAddr)> {
 		stream.set_nodelay(true)?;
 		Ok((stream, addr))
 	}
@@ -277,13 +286,15 @@ impl Server {
 	/// Tries to accept the request as TLS. To do so without breaking it, checks first for TLS
 	/// indicators. If not found, redirects to HTTPS.
 	#[cfg(feature = "tls")]
-	async fn try_accept_inner(&self) -> io::Result<(Stream, SocketAddr)> {
+	async fn try_accept_inner(
+		&self,
+		mut tcp_stream: TcpStream,
+		ip: SocketAddr,
+	) -> io::Result<(Stream, SocketAddr)> {
 		// Using `tls_acceptor` directly consumes the first 4 bytes of the stream,
 		// making redirects hard (and maybe impossible) to implement. `native_tls` uses
 		// different implementations (even externally) for `TlsAcceptor`, so the only
 		// safe way is this.
-
-		let (mut tcp_stream, ip) = self.acceptor.accept().await?;
 
 		tcp_stream.set_nodelay(true)?;
 
@@ -339,7 +350,7 @@ impl Server {
 			moved_permanently,
 			[],
 			crate::headers! {
-				"Location" => format!("https://{}{}", self.pretty_addr().unwrap_or_default(), path),
+				"Location" => format!("https://{}{}", self.pretty_addr(), path),
 				"Connection" => "keep-alive",
 			}
 		);
@@ -350,9 +361,9 @@ impl Server {
 	}
 
 	/// Waits for the next stream to be accepted.
-	pub async fn next_stream(&mut self) -> (Stream, SocketAddr) {
+	pub async fn next_stream(&mut self, listener: &TcpListener) -> (Stream, SocketAddr) {
 		loop {
-			match self.try_accept().await {
+			match self.try_accept(listener).await {
 				Ok(r) => return r,
 				Err(e)
 					if e.kind() == io::ErrorKind::ConnectionAborted

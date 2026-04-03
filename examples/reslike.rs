@@ -12,8 +12,7 @@ impl ResponseLike for Example {
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {
-	Server::new("localhost:8080")
-		.await?
+	Server::new("localhost:8080")?
 		.run(async |_| Example { num: 5 })
-		.await;
+		.await
 }

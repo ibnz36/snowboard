@@ -25,7 +25,7 @@ pub enum Method {
 	/// TRACE
 	TRACE,
 	/// Unknown method
-	UNKNOWN,
+	Other,
 }
 
 impl Display for Method {
@@ -46,7 +46,7 @@ impl From<&[u8]> for Method {
 			b"CONNECT" => Method::CONNECT,
 			b"PATCH" => Method::PATCH,
 			b"TRACE" => Method::TRACE,
-			_ => Method::UNKNOWN,
+			_ => Method::Other,
 		}
 	}
 }

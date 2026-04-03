@@ -11,8 +11,7 @@ async fn main() -> Result {
 		hello: "hi!".into(),
 	});
 
-	Server::new("localhost:8080")
-		.await?
+	Server::new("localhost:8080")?
 		.run(move |_| {
 			let data = Arc::clone(&data);
 

@@ -10,8 +10,7 @@ async fn handle_ws(ws: WebSocket) {
 
 #[smol_potat::main]
 async fn main() -> snowboard::Result {
-	Server::new("localhost:8080")
-		.await?
+	Server::new("localhost:8080")?
 		.on_websocket("/ws", handle_ws)
 		.run(async |_| "Try `/ws`!")
 		.await

@@ -1,11 +1,12 @@
-use snowboard::{response, Request, Result, Server};
+use snowboard::{response, Request, Result, Server, TcpListener};
 
 #[smol_potat::main]
 async fn main() -> Result {
-	let mut server = Server::new("localhost:8080").await?;
+	let mut server = Server::new("localhost:8080")?;
+	let listener = TcpListener::bind(server.addr()).await?;
 
 	loop {
-		let (mut stream, ip) = server.next_stream().await;
+		let (mut stream, ip) = server.next_stream(&listener).await;
 		let Ok(req) = Request::read_from(&mut stream, ip, 1000).await else {
 			continue;
 		};

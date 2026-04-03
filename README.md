@@ -32,11 +32,12 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 
 ## **Quick start**
 
-To get started with Snowboard, simply add it to your `Cargo.toml` file:
+To get started with Snowboard, simply add it and `smol-potat` to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
 snowboard = "*"
+smol-potat = { version = "*", features = "auto" }
 ```
 
 Then, create a new Rust file with the following code:
@@ -46,7 +47,7 @@ use snowboard::{headers, response, Server};
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {
-    let server = Server::new("localhost:8080").await?;
+    let server = Server::new("localhost:8080")?;
 
     println!("Listening on {}", server.pretty_addr()?);
 
@@ -79,8 +80,7 @@ async fn main() -> Result<()> {
     let idx = File::open("identity.pfx").await?;
     let tls_acceptor = TlsAcceptor::new(idx, password).await?;
 
-    Server::new("localhost:3000", tls_acceptor)
-        .await?
+    Server::new("localhost:3000", tls_acceptor)?
         .run(async move |request| format!("{request:#?}"))
         .await
 }
@@ -105,8 +105,7 @@ async fn handle_ws(ws: WebSocket) {
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {
-    Server::new("localhost:8080")
-        .await?
+    Server::new("localhost:8080")?
         .on_websocket("/ws", handle_ws)
         .run(async |_| "Try `/ws`!")
         .await
@@ -132,7 +131,7 @@ async fn router(req: Request) -> impl ResponseLike {
 
 #[snowboard::main]
 async fn main() -> Result {
-    Server::new("localhost:8080").await?.run(router).await
+    Server::new("localhost:8080")?.run(router).await
 }
 ```
 
@@ -153,8 +152,7 @@ struct Example {
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {
-    Server::new("localhost:8080")
-        .await?
+    Server::new("localhost:8080")?
         .run(async |req| -> Result<Value, Response> {
             let parsed: Example = req.expect_json()?;
 
@@ -187,8 +185,7 @@ impl ResponseLike for Example {
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {
-    Server::new("localhost:8080")
-        .await?
+    Server::new("localhost:8080")?
         .run(async |_| Example { num: 5 })
         .await;
 }

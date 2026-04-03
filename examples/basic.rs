@@ -4,9 +4,9 @@ use snowboard::{headers, response, Method, Server};
 async fn main() -> snowboard::Result {
 	let data = "Hello, world!";
 
-	let server = Server::new("localhost:8080").await?;
+	let server = Server::new("localhost:8080")?;
 
-	println!("Listening on {}", server.pretty_addr()?);
+	println!("Listening on {}", server.pretty_addr());
 
 	server
 		.run(async move |mut req| {
