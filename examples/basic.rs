@@ -1,6 +1,6 @@
-use snowboard::{Method, Server, headers, response};
+use snowboard::{headers, response, Method, Server};
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
 	let data = "Hello, world!";
 

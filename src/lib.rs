@@ -33,9 +33,6 @@ pub use smol;
 pub use smol::net::TcpListener;
 pub use smol::stream::StreamExt;
 
-pub use smol_potat;
-pub use smol_potat::main;
-
 /// A type alias for `std::io::Result<()>`
 /// used in `Server::new()?.run(...)`.
 ///

@@ -1,6 +1,6 @@
 use snowboard::{headers, response, Server};
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
 	let server = Server::new("localhost:8080")?;
 

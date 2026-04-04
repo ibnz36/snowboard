@@ -6,7 +6,7 @@ struct Example {
 	number: isize,
 }
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
 	Server::new("localhost:8080")?
 		.run(async |req| -> Result<Value, Response> {

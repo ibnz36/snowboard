@@ -32,7 +32,7 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 
 ## **Quick start**
 
-To get started with Snowboard, simply add it and `smol-potat` to your `Cargo.toml` file:
+To get started with Snowboard, simply add it and `smol-potat` (or your preferred async runtime) to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
@@ -45,7 +45,7 @@ Then, create a new Rust file with the following code:
 ```rust
 use snowboard::{headers, response, Server};
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
     let server = Server::new("localhost:8080")?;
 
@@ -74,7 +74,7 @@ use snowboard::Server;
 
 use snowboard::smol::fs::File;
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> Result<()> {
     let password = "1234";
     let idx = File::open("identity.pfx").await?;
@@ -103,7 +103,7 @@ async fn handle_ws(ws: WebSocket) {
     }
 }
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
     Server::new("localhost:8080")?
         .on_websocket("/ws", handle_ws)
@@ -129,7 +129,7 @@ async fn router(req: Request) -> impl ResponseLike {
     }
 }
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> Result {
     Server::new("localhost:8080")?.run(router).await
 }
@@ -150,7 +150,7 @@ struct Example {
     number: isize,
 }
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
     Server::new("localhost:8080")?
         .run(async |req| -> Result<Value, Response> {
@@ -183,7 +183,7 @@ impl ResponseLike for Example {
     }
 }
 
-#[snowboard::main]
+#[smol_potat::main]
 async fn main() -> snowboard::Result {
     Server::new("localhost:8080")?
         .run(async |_| Example { num: 5 })
