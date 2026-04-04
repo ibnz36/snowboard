@@ -49,7 +49,7 @@ use snowboard::{headers, response, Server};
 async fn main() -> snowboard::Result {
     let server = Server::new("localhost:8080")?;
 
-    println!("Listening on {}", server.pretty_addr()?);
+    println!("Listening on {}", server.pretty_addr());
 
     server
         .run(async move |mut req| {
