@@ -3,7 +3,7 @@ static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 use snowboard::{Result, Server};
 
-#[smol_potat::main(threads = 12)]
+#[tokio::main]
 async fn main() -> Result {
 	// Not returning anything (`()`) is the same as Response::default()
 	Server::new("localhost:8080")?

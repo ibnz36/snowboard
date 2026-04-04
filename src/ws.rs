@@ -8,9 +8,10 @@ use crate::{headers, Request};
 use base64::engine::general_purpose::STANDARD as BASE64ENGINE;
 use base64::Engine;
 
+use async_tungstenite::tokio::TokioAdapter;
 use async_tungstenite::tungstenite::protocol;
 use async_tungstenite::WebSocketStream;
-use smol::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use sha1::{Digest, Sha1};
 
@@ -45,7 +46,7 @@ impl Request {
 	pub async fn upgrade<T: AsyncWrite + AsyncRead + Unpin>(
 		&mut self,
 		mut stream: T,
-	) -> Result<WebSocketStream<T>, T> {
+	) -> Result<WebSocketStream<TokioAdapter<T>>, T> {
 		if !self.is_websocket() {
 			return Err(stream);
 		}
@@ -61,7 +62,12 @@ impl Request {
 			.send_to(&mut stream)
 			.await;
 
-		Ok(WebSocketStream::from_raw_socket(stream, protocol::Role::Server, None).await)
+		Ok(WebSocketStream::from_raw_socket(
+			TokioAdapter::new(stream),
+			protocol::Role::Server,
+			None,
+		)
+		.await)
 	}
 }
 

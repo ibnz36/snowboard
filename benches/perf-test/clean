@@ -1,0 +1,4 @@
+#!/bin/bash
+
+rm results-20*
+rm flamegraph-20*

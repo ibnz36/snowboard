@@ -5,9 +5,9 @@ mod response_types;
 mod responselike;
 
 pub use responselike::ResponseLike;
-use smol::io::{AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-use std::{collections::HashMap, fmt, fmt::Write, io};
+use std::{collections::HashMap, fmt, io};
 
 use crate::HttpVersion;
 
@@ -100,15 +100,18 @@ impl Response {
 		let estimated_size = 50 + (self.headers.len() * 100) + 2;
 		let mut text = String::with_capacity(estimated_size);
 
-		writeln!(
-			text,
-			"{} {} {}",
-			self.version, self.status, self.status_text
-		)
-		.unwrap();
+		text.push_str(self.version.into());
+		text.push(' ');
+		text.push_str(&self.status.to_string());
+		text.push(' ');
+		text.push_str(self.status_text);
+		text.push_str("\r\n");
 
 		for (key, value) in self.headers.iter() {
-			writeln!(text, "{}: {}", key, value).unwrap();
+			text.push_str(key);
+			text.push_str(": ");
+			text.push_str(value);
+			text.push_str("\r\n");
 		}
 
 		text.push_str("\r\n");

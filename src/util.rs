@@ -100,6 +100,21 @@ impl From<&str> for HttpVersion {
 	}
 }
 
+impl From<HttpVersion> for &str {
+	fn from(version: HttpVersion) -> Self {
+		match version {
+			HttpVersion::V1_0 => "HTTP/1.0",
+			HttpVersion::V1_1 => "HTTP/1.1",
+			HttpVersion::V2_0 => "HTTP/2.0",
+			HttpVersion::V3_0 => "HTTP/3.0",
+			// If the version isn't valid, and the user tries to send a response,
+			// it'll just send a 1.1 response. This might cause problems, but it's
+			// better than crashing.
+			HttpVersion::Other => "HTTP/1.1",
+		}
+	}
+}
+
 /// Formats a socket address into something usable.
 pub fn format_addr(addr: SocketAddr) -> String {
 	match addr {

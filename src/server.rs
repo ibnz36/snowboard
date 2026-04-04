@@ -8,9 +8,9 @@ use crate::ResponseLike;
 pub const DEFAULT_BUFFER_SIZE: usize = 1024 * 8;
 
 use std::io;
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr, ToSocketAddrs};
 
-use smol::net::{SocketAddr, TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpStream};
 
 #[cfg(feature = "tls")]
 use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
@@ -29,14 +29,14 @@ pub type Stream = TlsStream<TcpStream>;
 #[cfg(feature = "websocket")]
 use crate::ws::maybe_websocket;
 #[cfg(feature = "websocket")]
-use async_tungstenite::WebSocketStream;
+use async_tungstenite::{tokio::TokioAdapter, WebSocketStream};
 
 /// A WebSocket handler type.
 #[cfg(feature = "websocket")]
 pub type WsHandler<S> = Option<(&'static str, WsHandlerFn<S>)>;
 /// The inner function of a WebSocket handler.
 #[cfg(feature = "websocket")]
-type WsHandlerFn<S> = Arc<dyn Fn(WebSocketStream<S>) + Send + Sync + 'static>;
+type WsHandlerFn<S> = Arc<dyn Fn(WebSocketStream<TokioAdapter<S>>) + Send + Sync + 'static>;
 
 use std::future::Future;
 
@@ -140,12 +140,13 @@ impl Server {
 	#[cfg(feature = "websocket")]
 	pub fn on_websocket<F, R>(mut self, path: &'static str, handler: F) -> Self
 	where
-		F: Fn(WebSocketStream<Stream>) -> R + Send + 'static + Clone + Sync,
+		F: Fn(WebSocketStream<TokioAdapter<Stream>>) -> R + Send + 'static + Clone + Sync,
 		R: Future<Output = ()> + Send + 'static,
 	{
-		let real_handler: WsHandlerFn<Stream> = Arc::new(move |s: WebSocketStream<Stream>| {
-			smol::spawn(handler(s)).detach();
-		});
+		let real_handler: WsHandlerFn<Stream> =
+			Arc::new(move |s: WebSocketStream<TokioAdapter<Stream>>| {
+				tokio::spawn(handler(s));
+			});
 
 		self.ws_handler = Some((path, real_handler));
 		self
@@ -165,7 +166,7 @@ impl Server {
 		let listener = TcpListener::bind(self.addr).await?;
 		loop {
 			let (stream, addr) = self.next_stream(&listener).await;
-			smol::spawn(Self::keep_handling(
+			tokio::spawn(Self::keep_handling(
 				buffer_size,
 				should_insert_defaults,
 				stream,
@@ -173,8 +174,7 @@ impl Server {
 				handler.clone(),
 				#[cfg(feature = "websocket")]
 				ws_handler.clone(),
-			))
-			.detach();
+			));
 		}
 	}
 

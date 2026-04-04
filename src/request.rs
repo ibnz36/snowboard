@@ -1,7 +1,7 @@
 //! A module that provides code to handle https/http requests.
 
-use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 use std::{borrow::Cow, collections::HashMap, io, net::SocketAddr};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 use crate::{Method, Url};
 

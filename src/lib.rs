@@ -22,16 +22,19 @@ pub use response::DEFAULT_HTTP_VERSION as _DEFAULT_HTTP_VERSION; // we need this
 pub(crate) use util::HttpVersion;
 
 #[cfg(feature = "websocket")]
+use async_tungstenite::tokio::TokioAdapter;
+
+#[cfg(feature = "websocket")]
 /// A WebSocket connection.
-pub type WebSocket = async_tungstenite::WebSocketStream<Stream>;
+pub type WebSocket = async_tungstenite::WebSocketStream<TokioAdapter<Stream>>;
 
 #[cfg(feature = "tls")]
 // Re-export needed structs for `Server::new(...)` with TLS.
 pub use async_native_tls::TlsAcceptor;
 
-pub use smol;
-pub use smol::net::TcpListener;
-pub use smol::stream::StreamExt;
+pub use tokio;
+pub use tokio::net::TcpListener;
+pub use tokio_stream::StreamExt;
 
 /// A type alias for `std::io::Result<()>`
 /// used in `Server::new()?.run(...)`.

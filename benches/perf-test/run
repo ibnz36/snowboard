@@ -11,14 +11,10 @@ fuser -k -n tcp 8080
 echo "Logging to $LOG_FILE"
 > "$LOG_FILE"
 
-bench_unlogged () {
-	echo "- wrk -t12 -c$1 -d30s http://localhost:8080 -"
-	wrk -t12 -c$1 -d30s http://localhost:8080
-	echo "---------------------------------------------"
-}
-
 bench () {
-	bench_unlogged "$1" >> "$LOG_FILE"
+	echo "- wrk -t12 -c$1 -d30s http://localhost:8080 -" >> "$LOG_FILE"
+	wrk -t12 -c$1 -d30s http://localhost:8080 >> "$LOG_FILE"
+	echo "---------------------------------------------" >> "$LOG_FILE"
 }
 
 bench_with_flamegraph () {
@@ -47,9 +43,11 @@ bench_with_flamegraph () {
 
 echo "Building..."
 
-cargo run --release &
+cargo build --release
+
+./target/release/perf-test &
 APP_PID=$!
-sleep 3
+sleep 5
 
 echo "Running standard benchmarks..."
 
@@ -64,5 +62,6 @@ wait $APP_PID 2>/dev/null
 bench_with_flamegraph 900
 
 cp "$LOG_FILE" "results-latest.txt"
+cp "$FLAME_OUT" "flamegraph-latest.svg"
 
 echo "Done"
