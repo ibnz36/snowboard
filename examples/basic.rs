@@ -1,4 +1,4 @@
-use snowboard::{headers, response, Method, Server};
+use snowboard::{Method, Server, headers, response};
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {

@@ -1,5 +1,5 @@
 macro_rules! map_into {
-	($($name:expr => $val:expr $(,)?)*) => {
+	($($name:expr_2021 => $val:expr_2021 $(,)?)*) => {
 		{
 			let mut map = HashMap::new();
 			$(map.insert($name.into(), $val.into());)*

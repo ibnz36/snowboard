@@ -5,7 +5,7 @@ use crate::{Headers, HttpVersion, Response};
 
 /// Macro rule used to create response types during compile time.
 macro_rules! create_response_types {
-    ($($name:ident, $code:expr, $text:expr);*) => {
+    ($($name:ident, $code:expr_2021, $text:expr_2021);*) => {
 		type HttpV = HttpVersion;
         impl Response {
         $(

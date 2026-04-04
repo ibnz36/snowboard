@@ -220,10 +220,13 @@ impl Server {
 			};
 
 			#[cfg(feature = "websocket")]
-			if let Err(new_stream) = maybe_websocket(ws_handler.clone(), stream, &mut req).await {
-				stream = new_stream;
-			} else {
-				break;
+			match maybe_websocket(ws_handler.clone(), stream, &mut req).await {
+				Err(new_stream) => {
+					stream = new_stream;
+				}
+				_ => {
+					break;
+				}
 			}
 
 			let keep_alive = req.keep_alive();

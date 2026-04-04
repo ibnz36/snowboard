@@ -31,7 +31,7 @@ macro_rules! response {
 		$crate::Response::default()
 	};
 
-	(continue $(, $($rest:expr),* )?) => {
+	(continue $(, $($rest:expr_2021),* )?) => {
 		$crate::response!(continue_ $(, $($rest),* )?)
 	};
 
@@ -39,11 +39,11 @@ macro_rules! response {
 		$crate::Response::$type(vec![], $crate::Headers::default(), $crate::_DEFAULT_HTTP_VERSION)
 	};
 
-	($type:ident,$body:expr) => {
+	($type:ident,$body:expr_2021) => {
 		$crate::Response::$type($body.into(), $crate::Headers::default(), $crate::_DEFAULT_HTTP_VERSION)
 	};
 
-	($type:ident,$body:expr,$headers:expr) => {
+	($type:ident,$body:expr_2021,$headers:expr_2021) => {
 		$crate::Response::$type($body.into(), $headers, $crate::_DEFAULT_HTTP_VERSION)
 	};
 }
@@ -68,7 +68,7 @@ macro_rules! response {
 /// ```
 #[macro_export]
 macro_rules! headers {
-	($($name:expr => $value:expr $(,)?)*) => {{
+	($($name:expr_2021 => $value:expr_2021 $(,)?)*) => {{
 		let mut map = ::std::collections::HashMap::<&str, String>::new();
 		$(map.insert($name, $value.to_string());)*
 		map

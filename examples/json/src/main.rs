@@ -8,8 +8,7 @@ struct Example {
 
 #[snowboard::main]
 async fn main() -> snowboard::Result {
-	Server::new("localhost:8080")
-		.await?
+	Server::new("localhost:8080")?
 		.run(async |req| -> Result<Value, Response> {
 			let parsed: Example = req.expect_json()?;
 
