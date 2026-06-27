@@ -32,12 +32,12 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 
 ## **Quick start**
 
-To get started with Snowboard, simply add it and `smol-potat` (or your preferred async runtime) to your `Cargo.toml` file:
+To get started with Snowboard, simply add it and `tokio` (or your preferred async runtime) to your `Cargo.toml` file:
 
 ```toml
 [dependencies]
 snowboard = "*"
-smol-potat = { version = "*", features = "auto" }
+tokio = { version = "1", features = ["full"] }
 ```
 
 Then, create a new Rust file with the following code:
@@ -45,7 +45,7 @@ Then, create a new Rust file with the following code:
 ```rust
 use snowboard::{headers, response, Server};
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> snowboard::Result {
     let server = Server::new("localhost:8080")?;
 
@@ -104,7 +104,7 @@ async fn handle_ws(ws: WebSocket) {
     }
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> snowboard::Result {
     Server::new("localhost:8080")?
         .on_websocket("/ws", handle_ws)
@@ -130,7 +130,7 @@ async fn router(req: Request) -> impl ResponseLike {
     }
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> Result {
     Server::new("localhost:8080")?.run(router).await
 }
@@ -151,7 +151,7 @@ struct Example {
     number: isize,
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> snowboard::Result {
     Server::new("localhost:8080")?
         .run(async |req| -> Result<Value, Response> {
@@ -184,7 +184,7 @@ impl ResponseLike for Example {
     }
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> snowboard::Result {
     Server::new("localhost:8080")?
         .run(async |_| Example { num: 5 })
