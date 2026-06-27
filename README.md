@@ -16,17 +16,20 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 <details>
 <summary>Table of Contents</summary>
 
-- [**Snowboard 🏂**](#snowboard-)
-    - [**Quick start**](#quick-start)
-    - [**Async routes**](#async-routes)
-    - [**TLS**](#tls)
-    - [**Websockets**](#websockets)
-    - [**Routing**](#routing)
-    - [**Integration**](#integration)
-        - [**JSON**](#json)
-        - [**ResponseLike**](#responselike)
-    - [**Contributing**](#contributing)
-    - [**License**](#license)
+<!-- TOC -->
+
+- [Snowboard 🏂](#snowboard-)
+    - [Quick start](#quick-start)
+    - [TLS](#tls)
+    - [Websockets](#websockets)
+    - [Routing](#routing)
+    - [Integration](#integration)
+        - [JSON](#json)
+        - [ResponseLike](#responselike)
+    - [Contributing](#contributing)
+    - [License](#license)
+
+<!-- /TOC -->
 
 </details>
 
