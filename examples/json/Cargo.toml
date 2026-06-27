@@ -10,4 +10,4 @@ features = ["json"]
 [dependencies]
 serde_json = "*"
 serde = { version = "*", features = ["derive"] }
-smol-potat = "*"
+tokio = { version = "1", features = ["full"] }
