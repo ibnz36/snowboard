@@ -5,7 +5,7 @@ struct ServerData {
 	hello: String,
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> Result {
 	let data = Arc::new(ServerData {
 		hello: "hi!".into(),

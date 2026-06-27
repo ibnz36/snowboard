@@ -10,7 +10,7 @@ impl ResponseLike for Example {
 	}
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> snowboard::Result {
 	Server::new("localhost:8080")?
 		.run(async |_| Example { num: 5 })

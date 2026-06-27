@@ -84,7 +84,6 @@ impl Response {
 	/// Sets the content length of a reference to a response
 	pub fn set_header(&mut self, key: &'static str, value: String) -> &mut Self {
 		self.headers.insert(key, value);
-
 		self
 	}
 

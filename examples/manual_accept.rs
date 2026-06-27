@@ -1,6 +1,6 @@
 use snowboard::{Result, Server, TcpListener};
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> Result {
 	let server = Server::new("localhost:8080")?;
 	let listener = TcpListener::bind(server.addr()).await?;

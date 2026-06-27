@@ -8,7 +8,7 @@ async fn handle_ws(ws: WebSocket) {
 	}
 }
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> snowboard::Result {
 	Server::new("localhost:8080")?
 		.on_websocket("/ws", handle_ws)
