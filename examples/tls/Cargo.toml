@@ -5,8 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
-smol = "2.0.2"
-smol-potat = "1.1.2"
+tokio = { version = "1", features = ["full"] }
 
 [dependencies.snowboard]
 path = "../.."

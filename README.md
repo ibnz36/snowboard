@@ -16,17 +16,17 @@ An extremely simple (& blazingly fast) library for HTTP & HTTPS servers in Rust
 <details>
 <summary>Table of Contents</summary>
 
--   [**Snowboard 🏂**](#snowboard-)
-    -   [**Quick start**](#quick-start)
-    -   [**Async routes**](#async-routes)
-    -   [**TLS**](#tls)
-    -   [**Websockets**](#websockets)
-    -   [**Routing**](#routing)
-    -   [**Integration**](#integration)
-        -   [**JSON**](#json)
-        -   [**ResponseLike**](#responselike)
-    -   [**Contributing**](#contributing)
-    -   [**License**](#license)
+- [**Snowboard 🏂**](#snowboard-)
+    - [**Quick start**](#quick-start)
+    - [**Async routes**](#async-routes)
+    - [**TLS**](#tls)
+    - [**Websockets**](#websockets)
+    - [**Routing**](#routing)
+    - [**Integration**](#integration)
+        - [**JSON**](#json)
+        - [**ResponseLike**](#responselike)
+    - [**Contributing**](#contributing)
+    - [**License**](#license)
 
 </details>
 
@@ -68,21 +68,22 @@ Use the `tls` feature to create secure-connection servers:
 
 ```rust
 use anyhow::Result;
-use snowboard::TlsAcceptor;
+use snowboard::{Identity, TlsAcceptor};
 
 use snowboard::Server;
 
-use snowboard::smol::fs::File;
+use tokio::fs;
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> Result<()> {
     let password = "1234";
-    let idx = File::open("identity.pfx").await?;
-    let tls_acceptor = TlsAcceptor::new(idx, password).await?;
+    let der = fs::read("identity.pfx").await?;
+    let identity = Identity::from_pkcs12(&der, password)?;
+    let tls_acceptor = TlsAcceptor::new(identity)?;
 
-    Server::new("localhost:3000", tls_acceptor)?
+    Ok(Server::new("localhost:3000", tls_acceptor)?
         .run(async move |request| format!("{request:#?}"))
-        .await
+        .await?)
 }
 ```
 

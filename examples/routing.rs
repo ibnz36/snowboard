@@ -4,7 +4,7 @@ async fn router(req: Request) -> impl ResponseLike {
 	// /{x}
 	match req.parse_url().at(0) {
 		Some("ping") => response!(ok, "Pong!"),
-		Some("api") => response!(continue),
+		Some("api") => response!(unauthorized, "you're not allowed here!"),
 		None => response!(ok, "Hello, world!"),
 		_ => response!(not_found, "Route not found"),
 	}

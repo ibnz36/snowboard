@@ -1,17 +1,19 @@
 //! A module that provides code to handle the websocketing funtionality of the server-client.
 
+use crate::server::WsHandlerFn;
+use crate::Request;
+
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_tungstenite::WebSocketStream;
+
 use std::collections::HashMap;
 
-use crate::server::WsHandler;
-use crate::{headers, Request};
+use crate::headers;
 
 use base64::engine::general_purpose::STANDARD as BASE64ENGINE;
 use base64::Engine;
 
-use async_tungstenite::tokio::TokioAdapter;
-use async_tungstenite::tungstenite::protocol;
-use async_tungstenite::WebSocketStream;
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_tungstenite::tungstenite::protocol;
 
 use sha1::{Digest, Sha1};
 
@@ -46,7 +48,7 @@ impl Request {
 	pub async fn upgrade<T: AsyncWrite + AsyncRead + Unpin>(
 		&mut self,
 		mut stream: T,
-	) -> Result<WebSocketStream<TokioAdapter<T>>, T> {
+	) -> Result<WebSocketStream<T>, T> {
 		if !self.is_websocket() {
 			return Err(stream);
 		}
@@ -58,16 +60,15 @@ impl Request {
 
 		let handshake = build_handshake(ws_key);
 
-		let _ = crate::response!(switching_protocols, [], handshake)
+		if crate::response!(switching_protocols, [], handshake)
 			.send_to(&mut stream)
-			.await;
+			.await
+			.is_err()
+		{
+			return Err(stream);
+		};
 
-		Ok(WebSocketStream::from_raw_socket(
-			TokioAdapter::new(stream),
-			protocol::Role::Server,
-			None,
-		)
-		.await)
+		Ok(WebSocketStream::from_raw_socket(stream, protocol::Role::Server, None).await)
 	}
 }
 
@@ -76,21 +77,14 @@ impl Request {
 /// Does nothing if the request is not a WebSocket handshake request.
 #[cfg(feature = "websocket")]
 pub async fn maybe_websocket<S: AsyncWrite + Unpin + AsyncRead + Send + 'static>(
-	handler: WsHandler<S>,
+	handler: WsHandlerFn<S>,
 	stream: S,
 	req: &mut Request,
 ) -> Result<(), S> {
-	let handler = match handler {
-		Some((path, f)) if req.url.starts_with(path) => f,
-		_ => return Err(stream),
+	match req.upgrade(stream).await {
+		Ok(s) => handler(s),
+		Err(s) => return Err(s),
 	};
 
-	match req.upgrade(stream).await {
-		Ok(s) => {
-			let h = handler.clone();
-			h(s);
-			Ok(())
-		}
-		Err(s) => Err(s),
-	}
+	Ok(())
 }

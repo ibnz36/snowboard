@@ -7,7 +7,7 @@ mod responselike;
 pub use responselike::ResponseLike;
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-use std::{collections::HashMap, fmt, io};
+use std::{collections::HashMap, io};
 
 use crate::HttpVersion;
 
@@ -63,8 +63,9 @@ impl Response {
 		self.set_content_length();
 		let prev = self.prepare_response().into_bytes();
 		stream.write_all(&prev).await?;
-		stream.write_all(&self.bytes).await?;
-		stream.write_all(b"\r\n").await?;
+		if !self.bytes.is_empty() {
+			stream.write_all(&self.bytes).await?;
+		}
 		stream.flush().await
 	}
 
@@ -90,7 +91,7 @@ impl Response {
 	/// Sets the content length of the response
 	pub fn set_content_length(&mut self) -> &mut Self {
 		// the +2 is because of the obligatory "\r\n" at the end of responses
-		self.set_header("Content-Length", (self.len() + 2).to_string())
+		self.set_header("Content-Length", self.len().to_string())
 	}
 
 	/// Returns the first lines of the generated response. (everything except the body)
@@ -160,15 +161,6 @@ impl Response {
 impl From<Response> for Vec<u8> {
 	fn from(mut res: Response) -> Self {
 		res.to_bytes()
-	}
-}
-
-impl fmt::Display for Response {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let mut text = self.prepare_response();
-		text += String::from_utf8_lossy(&self.bytes).as_ref();
-		text += "\r\n";
-		write!(f, "{}", text)
 	}
 }
 

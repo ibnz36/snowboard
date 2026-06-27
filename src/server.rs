@@ -13,10 +13,13 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use tokio::net::{TcpListener, TcpStream};
 
 #[cfg(feature = "tls")]
-use smol::io::{AsyncRead, AsyncReadExt, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite};
 
 #[cfg(feature = "tls")]
-use async_native_tls::{TlsAcceptor, TlsStream};
+use tokio_native_tls::{TlsAcceptor, TlsStream};
+
+#[cfg(feature = "tls")]
+use tokio_native_tls::native_tls::TlsAcceptor as NTlsAcceptor;
 
 /// A TCP stream
 #[cfg(not(feature = "tls"))]
@@ -29,14 +32,14 @@ pub type Stream = TlsStream<TcpStream>;
 #[cfg(feature = "websocket")]
 use crate::ws::maybe_websocket;
 #[cfg(feature = "websocket")]
-use async_tungstenite::{tokio::TokioAdapter, WebSocketStream};
+use tokio_tungstenite::WebSocketStream;
 
 /// A WebSocket handler type.
 #[cfg(feature = "websocket")]
 pub type WsHandler<S> = Option<(&'static str, WsHandlerFn<S>)>;
 /// The inner function of a WebSocket handler.
 #[cfg(feature = "websocket")]
-type WsHandlerFn<S> = Arc<dyn Fn(WebSocketStream<TokioAdapter<S>>) + Send + Sync + 'static>;
+pub(crate) type WsHandlerFn<S> = Arc<dyn Fn(WebSocketStream<S>) + Send + Sync + 'static>;
 
 use std::future::Future;
 
@@ -65,7 +68,7 @@ impl Server {
 	/// The server will listen on the given address.
 	pub fn new(
 		addr: impl ToSocketAddrs,
-		#[cfg(feature = "tls")] tls_acceptor: TlsAcceptor,
+		#[cfg(feature = "tls")] tls_acceptor: NTlsAcceptor,
 	) -> io::Result<Self> {
 		Ok(Self {
 			addr: addr.to_socket_addrs()?.next().ok_or(io::Error::new(
@@ -76,7 +79,7 @@ impl Server {
 			#[cfg(feature = "websocket")]
 			ws_handler: None,
 			#[cfg(feature = "tls")]
-			tls_acceptor,
+			tls_acceptor: TlsAcceptor::from(tls_acceptor),
 			insert_default_headers: false,
 		})
 	}
@@ -140,13 +143,12 @@ impl Server {
 	#[cfg(feature = "websocket")]
 	pub fn on_websocket<F, R>(mut self, path: &'static str, handler: F) -> Self
 	where
-		F: Fn(WebSocketStream<TokioAdapter<Stream>>) -> R + Send + 'static + Clone + Sync,
+		F: Fn(WebSocketStream<Stream>) -> R + Send + 'static + Clone + Sync,
 		R: Future<Output = ()> + Send + 'static,
 	{
-		let real_handler: WsHandlerFn<Stream> =
-			Arc::new(move |s: WebSocketStream<TokioAdapter<Stream>>| {
-				tokio::spawn(handler(s));
-			});
+		let real_handler: WsHandlerFn<Stream> = Arc::new(move |s: WebSocketStream<Stream>| {
+			tokio::spawn(handler(s));
+		});
 
 		self.ws_handler = Some((path, real_handler));
 		self
@@ -220,12 +222,12 @@ impl Server {
 			};
 
 			#[cfg(feature = "websocket")]
-			match maybe_websocket(ws_handler.clone(), stream, &mut req).await {
-				Err(new_stream) => {
-					stream = new_stream;
-				}
-				_ => {
-					break;
+			if let Some(wsh) = ws_handler.clone() {
+				if req.url.starts_with(wsh.0) {
+					match maybe_websocket(wsh.1, stream, &mut req).await {
+						Ok(()) => break,
+						Err(new_s) => stream = new_s,
+					};
 				}
 			}
 

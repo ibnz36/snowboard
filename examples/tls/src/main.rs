@@ -1,18 +1,25 @@
 use anyhow::Result;
-use snowboard::TlsAcceptor;
+use tokio::fs;
 
-use snowboard::Server;
+use snowboard::{Identity, TlsAcceptor};
+use snowboard::{Server, SinkExt, StreamExt, WebSocket};
 
-use snowboard::smol::fs::File;
+async fn echo(ws: WebSocket) {
+	let (mut sender, mut reciever) = ws.split();
+	while let Some(Ok(msg)) = reciever.next().await {
+		let _ = sender.send(msg).await;
+	}
+}
 
-#[smol_potat::main]
+#[tokio::main]
 async fn main() -> Result<()> {
 	let password = "1234";
-	let idx = File::open("identity.pfx").await?;
-	let tls_acceptor = TlsAcceptor::new(idx, password).await?;
+	let der = fs::read("identity.pfx").await?;
+	let identity = Identity::from_pkcs12(&der, password)?;
+	let tls_acceptor = TlsAcceptor::new(identity)?;
 
-	Server::new("localhost:3000", tls_acceptor)
-		.await?
+	Ok(Server::new("localhost:3000", tls_acceptor)?
+		.on_websocket("/ws", echo)
 		.run(async move |request| format!("{request:#?}"))
-		.await
+		.await?)
 }
